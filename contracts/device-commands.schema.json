@@ -1,0 +1,729 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whale-agent.local/contracts/device-commands.schema.json",
+  "title": "Whale Device Command",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/app_list"
+    },
+    {
+      "$ref": "#/definitions/app_launch"
+    },
+    {
+      "$ref": "#/definitions/ui_observe"
+    },
+    {
+      "$ref": "#/definitions/screen_capture"
+    },
+    {
+      "$ref": "#/definitions/ui_tap"
+    },
+    {
+      "$ref": "#/definitions/ui_long_press"
+    },
+    {
+      "$ref": "#/definitions/ui_scroll"
+    },
+    {
+      "$ref": "#/definitions/ui_input"
+    },
+    {
+      "$ref": "#/definitions/ui_global"
+    },
+    {
+      "$ref": "#/definitions/system_settings"
+    },
+    {
+      "$ref": "#/definitions/camera_capture"
+    },
+    {
+      "$ref": "#/definitions/media_pick"
+    },
+    {
+      "$ref": "#/definitions/gallery_list"
+    },
+    {
+      "$ref": "#/definitions/gallery_read"
+    },
+    {
+      "$ref": "#/definitions/media_upload"
+    },
+    {
+      "$ref": "#/definitions/media_share"
+    },
+    {
+      "$ref": "#/definitions/telephony_dial"
+    },
+    {
+      "$ref": "#/definitions/contacts_search"
+    },
+    {
+      "$ref": "#/definitions/sms_compose"
+    },
+    {
+      "$ref": "#/definitions/sms_send"
+    },
+    {
+      "$ref": "#/definitions/device_status"
+    },
+    {
+      "$ref": "#/definitions/system_unlock"
+    }
+  ],
+  "definitions": {
+    "screen_capture": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.screen.capture"
+            },
+            "payload": {
+              "const": {}
+            }
+          }
+        }
+      ]
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command",
+        "payload"
+      ],
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "payload": {
+          "type": "object"
+        }
+      }
+    },
+    "app_list": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.app.list"
+            },
+            "payload": {
+              "const": {}
+            }
+          }
+        }
+      ]
+    },
+    "app_launch": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.app.launch"
+            },
+            "payload": {
+              "$ref": "#/definitions/app_launch_payload"
+            }
+          }
+        }
+      ]
+    },
+    "app_launch_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "package_name"
+      ],
+      "properties": {
+        "package_name": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 255
+        }
+      }
+    },
+    "ui_observe": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.ui.observe"
+            },
+            "payload": {
+              "$ref": "#/definitions/ui_observe_payload"
+            }
+          }
+        }
+      ]
+    },
+    "ui_observe_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "auto",
+            "tree",
+            "vision"
+          ]
+        },
+        "package_name": {
+          "type": "string",
+          "maxLength": 255
+        }
+      }
+    },
+    "ui_target": {
+      "type": "object",
+      "required": [
+        "snapshot_id",
+        "target_id",
+        "selector_hash",
+        "expected_package"
+      ],
+      "properties": {
+        "snapshot_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "selector_hash": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected_package": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "expected_state": {
+          "type": "object"
+        }
+      }
+    },
+    "ui_tap": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.ui.tap"
+            },
+            "payload": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/ui_target"
+                }
+              ],
+              "unevaluatedProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "ui_long_press": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.ui.long_press"
+            },
+            "payload": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/ui_target"
+                },
+                {
+                  "required": [
+                    "duration_ms"
+                  ],
+                  "properties": {
+                    "duration_ms": {
+                      "type": "integer",
+                      "minimum": 300,
+                      "maximum": 30000
+                    }
+                  }
+                }
+              ],
+              "unevaluatedProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "ui_scroll": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.ui.scroll"
+            },
+            "payload": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/ui_target"
+                },
+                {
+                  "required": [
+                    "direction"
+                  ],
+                  "properties": {
+                    "direction": {
+                      "enum": [
+                        "up",
+                        "down",
+                        "left",
+                        "right"
+                      ]
+                    },
+                    "amount": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 2000
+                    }
+                  }
+                }
+              ],
+              "unevaluatedProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "ui_input": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.ui.input"
+            },
+            "payload": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/ui_target"
+                },
+                {
+                  "required": [
+                    "text"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "maxLength": 20000
+                    }
+                  }
+                }
+              ],
+              "unevaluatedProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "ui_global": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "enum": [
+                "device.ui.back",
+                "device.ui.home",
+                "device.ui.recents",
+                "device.ui.notifications"
+              ]
+            },
+            "payload": {
+              "const": {}
+            }
+          }
+        }
+      ]
+    },
+    "system_settings": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.system.settings"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "camera_capture": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.camera.capture"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "lens": {
+                  "enum": [
+                    "back",
+                    "front"
+                  ]
+                },
+                "quality": {
+                  "enum": [
+                    "standard",
+                    "high"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "media_pick": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.media.pick"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "media_type",
+                "max_items"
+              ],
+              "properties": {
+                "media_type": {
+                  "enum": [
+                    "image",
+                    "video",
+                    "audio",
+                    "any"
+                  ]
+                },
+                "max_items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 20
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "media_upload": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.media.upload"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "asset_id"
+              ],
+              "properties": {
+                "asset_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "media_share": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.media.share"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "asset_id"
+              ],
+              "properties": {
+                "asset_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "target": {
+                  "type": "string",
+                  "maxLength": 160
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "telephony_dial": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.telephony.dial"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "number"
+              ],
+              "properties": {
+                "number": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 32
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "contacts_search": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.contacts.search"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "query"
+              ],
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "sms_compose": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.sms.compose"
+            },
+            "payload": {
+              "$ref": "#/definitions/sms_payload"
+            }
+          }
+        }
+      ]
+    },
+    "sms_send": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.sms.send"
+            },
+            "payload": {
+              "$ref": "#/definitions/sms_payload"
+            }
+          }
+        }
+      ]
+    },
+    "sms_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "number",
+        "text"
+      ],
+      "properties": {
+        "number": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5000
+        }
+      }
+    },
+    "device_status": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.device_status"
+            },
+            "payload": {
+              "const": {}
+            }
+          }
+        }
+      ]
+    },
+    "gallery_list": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.gallery.list"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 20
+                },
+                "offset": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "gallery_read": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.gallery.read"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "media_id"
+              ],
+              "properties": {
+                "media_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "system_unlock": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "properties": {
+            "command": {
+              "const": "device.system.unlock"
+            },
+            "payload": {
+              "const": {}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

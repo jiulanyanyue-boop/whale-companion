@@ -1,0 +1,6 @@
+name: astrbot_plugin_whale_memes
+display_name: Whale Memes
+author: Whale Agent
+version: 0.1.0
+desc: 本地表情包检索与按需即梦 4.0 生成工具
+short_desc: 检索本地表情包，按需生成

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whale-agent.local/contracts/device-envelope.schema.json",
+  "title": "Whale Device Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol_version", "request_id", "device_id", "command", "deadline_ms", "idempotency_key", "counter", "issued_at_ms", "payload", "signature"],
+  "properties": {
+    "protocol_version": { "type": "integer", "const": 1 },
+    "request_id": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "device_id": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{3,80}$" },
+    "command": { "type": "string", "pattern": "^(device\\.[a-z0-9_.]+|host\\.policy\\.sync)$" },
+    "deadline_ms": { "type": "integer", "minimum": 100, "maximum": 300000 },
+    "idempotency_key": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "counter": { "type": "integer", "minimum": 0 },
+    "issued_at_ms": { "type": "integer", "minimum": 0 },
+    "payload": { "type": "object" },
+    "signature": { "type": "string", "minLength": 1 }
+  }
+}

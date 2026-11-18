@@ -1,0 +1,24 @@
+{
+  "astrbot": {
+    "url": "https://github.com/AstrBotDevs/AstrBot",
+    "revision": "10364e85a35d2f76bfcd706e1505652817565065",
+    "patch_sha256": "f012f720e985e5e905f629a00f3429132cfde99ca216cdca9da0049689f274d1",
+    "changed_files": [
+      "astrbot/core/agent/runners/tool_loop_agent_runner.py",
+      "astrbot/core/agent/tool_discovery.py",
+      "astrbot/core/astr_main_agent/builder.py",
+      "astrbot/core/astr_main_agent/config.py",
+      "astrbot/core/astr_main_agent/persona.py",
+      "astrbot/core/config/default.py",
+      "astrbot/core/pipeline/process_stage/follow_up.py",
+      "astrbot/dashboard/plugin_page_bridge.js"
+    ]
+  },
+  "plugins": [
+    "astrbot_plugin_whale_device",
+    "astrbot_plugin_whale_memes",
+    "astrbot_plugin_livingmemory",
+    "astrbot_proactive_reply"
+  ],
+  "export_date": "2026-11-17"
+}

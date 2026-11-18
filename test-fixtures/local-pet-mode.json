@@ -1,0 +1,13 @@
+{
+  "mode": "LOCAL_PET",
+  "input": {
+    "source": "local_voice",
+    "text": "打开设置"
+  },
+  "expected": {
+    "remote_websocket": "MODE_REJECTED",
+    "command_router": "device.app.launch",
+    "payload": { "package_name": "com.android.settings" },
+    "owner": "local_unlocked_session"
+  }
+}

@@ -1,0 +1,25 @@
+[project]
+name = "astrbot-whale-device"
+version = "0.1.0"
+description = "Whale Agent v2 AstrBot device bridge"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+desktop = ["customtkinter>=6,<7", "pystray>=0.19,<0.20", "pillow>=11", "qrcode>=8,<9", "pywebview>=6.2,<7"]
+runtime = ["websockets>=12,<16", "cryptography>=42,<46"]
+test = ["pytest>=8,<9"]
+voice = ["faster-whisper>=1.2,<2", "av>=11,<17", "imageio-ffmpeg>=0.6,<1"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["astrbot_whale_device*"]
+exclude = ["tests*", "data*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

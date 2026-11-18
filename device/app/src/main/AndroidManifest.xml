@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    android:versionCode="1"
+    android:versionName="0.1.0">
+    <!--
+        版本号必须写在这里，而不只写在 build.gradle.kts。
+
+        原因：本仓库不走 Gradle（本机没有 Gradle 发行版也没有 wrapper），
+        打包链是 tools/build-apk.ps1 直接调 aapt2/d8/apksigner，aapt2 只读 manifest。
+        如果只在 gradle 里声明 versionCode/versionName，产出的 APK 会是「版本未知」
+        （aapt2 dump badging 显示 versionCode='' versionName=''），
+        安装到手机上会显示「版本 未知」，系统升级判断与崩溃上报都会受影响。
+
+        AGP 8 中 manifest 的 versionCode/versionName 会被 gradle 的同名配置覆盖，
+        所以两处保持一致即可（当前 gradle 里是 versionCode=1 / versionName="0.1.0"）。
+        改版本时**两处都要改**。
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!--
+        M09 桌宠悬浮窗前台服务。悬浮窗不属于 connectedDevice/mediaPlayback 等标准类型，
+        因此使用 specialUse；该类型在 API 34 引入，需要配套的普通权限声明。
+        minSdk 26 设备上该权限与类型被系统忽略，服务仍用 runCatching 包裹 startForeground 降级。
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="false">
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".CameraCaptureActivity" android:exported="false" android:excludeFromRecents="true" android:label="小鲸鱼拍照" />
+        <activity android:name=".UnlockActivity" android:exported="false" android:excludeFromRecents="true" android:taskAffinity="cn.whale.agent.device.unlock"
+            android:showWhenLocked="true" android:turnScreenOn="true" android:theme="@style/Theme.Whale.Transparent" />
+        <service
+            android:name=".WhaleAccessibilityService"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_config" />
+        </service>
+        <service
+            android:name=".DeviceConnectionService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
+        <!--
+            M11 权限向导：由用户从设置页显式进入，不接受外部 Intent 参数控制。
+            exported=false：只有本应用能启动它，避免被其他应用拉起做「假授权」。
+        -->
+        <activity
+            android:name=".PermissionGuideActivity"
+            android:exported="false"
+            android:label="@string/app_name" />
+
+        <!--
+            M05 设备端配对页：扫码 / 粘贴 / 手输 + 六步流程 + 指纹确认。
+            exported=false：只由本应用内的显式入口启动，不接受外部 Intent 拉起做「假配对」。
+            不做 LAUNCHER 入口：配对是一次性动作，入口由 M01 设置页给出（MainActivity 由另一队友负责，
+            本 Manifest 只做注册，不改它）。
+        -->
+        <activity
+            android:name=".PairingActivity"
+            android:exported="false"
+            android:label="@string/m05_pairing_title"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!--
+            M09 桌宠悬浮窗服务。
+            - 需要 SYSTEM_ALERT_WINDOW（TYPE_APPLICATION_OVERLAY 分支）；
+            - 无障碍分支走 TYPE_ACCESSIBILITY_OVERLAY，不需要单独权限；
+            - 前台服务类型用 specialUse：悬浮窗不属于任何标准持续类型，
+              且 before API 34 无该枚举，这里保留 connectedDevice 与 specialUse 组合会因版本差异报错，
+              因此只声明 specialUse 并在代码里按 SDK 降级。
+            启动方固定为应用内显式点击（MainActivity / 桌宠自身），exported=false。
+        -->
+        <service
+            android:name=".PetOverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="whale_pet_overlay" />
+        </service>
+        <!--
+            M08 媒体分享出口：只通过 content:// 外发已登记素材，绝不暴露 file:// 真实路径。
+            - authority 固定 cn.whale.agent.device.media；
+            - exported=false：其他应用不能直接读取本 Provider，只能通过临时 URI 授权；
+            - grantUriPermissions=true：ACTION_SEND 时必须能授予一次性读权限；
+            - 路径白名单见 res/xml/media_share_paths.xml（只含受控素材目录）。
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="cn.whale.agent.device.media"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/media_share_paths" />
+        </provider>
+    </application>
+</manifest>

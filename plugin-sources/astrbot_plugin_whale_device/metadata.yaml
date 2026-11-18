@@ -1,0 +1,5 @@
+name: astrbot_plugin_whale_device
+display_name: Whale 主机
+author: Whale
+version: 1.0.0
+desc: 小鲸鱼自己的手机与相册，主人明确任务先执行再按人设回复，群友保有自主分享判断，文字分条发送。

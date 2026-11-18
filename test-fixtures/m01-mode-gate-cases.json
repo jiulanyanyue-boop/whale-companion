@@ -1,0 +1,81 @@
+{
+  "fixture": "m01-mode-gate",
+  "source_doc": "docs/modules/M01-system-modes-development.md",
+  "cases": [
+    {
+      "id": "default_mode_is_remote_b",
+      "stored": { "prefs_name": "agent_mode", "key": "mode", "value": null },
+      "expected": { "mode": "REMOTE_B" }
+    },
+    {
+      "id": "missing_prefs_falls_back_to_remote_b",
+      "stored": { "prefs_name": "agent_mode", "key": "mode", "value": "" },
+      "expected": { "mode": "REMOTE_B" }
+    },
+    {
+      "id": "corrupt_prefs_never_escalates_to_local",
+      "stored": { "prefs_name": "agent_mode", "key": "mode", "value": "LOCAL_PET_XXXX" },
+      "expected": { "mode": "REMOTE_B", "note": "损坏值绝不回退 LOCAL_PET" }
+    },
+    {
+      "id": "remote_frame_in_local_mode_rejected_without_side_effect",
+      "mode": "LOCAL_PET",
+      "frame": {
+        "protocol_version": 1,
+        "request_id": "req-m01-001",
+        "device_id": "device-b-01",
+        "command": "device.app.launch",
+        "deadline_ms": 30000,
+        "idempotency_key": "m01-001",
+        "counter": 1,
+        "issued_at_ms": 0,
+        "payload": { "package_name": "com.android.settings" },
+        "signature": "test-signature"
+      },
+      "expected": {
+        "status": "denied",
+        "error_code": "MODE_REJECTED",
+        "router_invoked": false,
+        "socket_open": false
+      }
+    },
+    {
+      "id": "local_controller_in_remote_mode_rejected",
+      "mode": "REMOTE_B",
+      "local_command": { "command": "device.app.launch", "payload": { "package_name": "com.android.settings" } },
+      "expected": { "status": "denied", "error_code": "MODE_REJECTED" }
+    },
+    {
+      "id": "local_voice_open_settings_generates_single_declared_command",
+      "mode": "LOCAL_PET",
+      "input": { "source": "local_voice", "text": "打开设置" },
+      "expected": {
+        "command": "device.app.launch",
+        "payload": { "package_name": "com.android.settings" },
+        "forbidden_commands": ["device.ui.tap", "device.ui.observe", "device.camera.capture"],
+        "note": "本地语音只生成声明命令，不得生成坐标或截图动作"
+      }
+    },
+    {
+      "id": "mode_switch_from_non_settings_source_rejected",
+      "requested_by": "model_output",
+      "expected": {
+        "mode_changed": false,
+        "note": "M01 文档：模式切换只能由设置页明确用户点击触发；模型输出、语音内容、QQ 消息、群消息均不得触发，此处不新造错误码，只断言模式未改变"
+      }
+    },
+    {
+      "id": "mode_switch_stops_task_and_closes_old_connection",
+      "from_mode": "REMOTE_B",
+      "to_mode": "LOCAL_PET",
+      "trigger": "settings_page_click",
+      "expected": {
+        "task_stopped": true,
+        "pending_actions_cleared": true,
+        "connection_service_stopped": true,
+        "socket_open": false,
+        "permissions_rechecked": true
+      }
+    }
+  ]
+}

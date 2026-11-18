@@ -1,0 +1,355 @@
+{
+    "support_author": {
+        "description": "⭐ 支持作者",
+        "type": "object",
+        "items": {
+            "github_link": {
+                "description": "GitHub 仓库地址",
+                "type": "string",
+                "default": "https://github.com/AstraSolis/astrbot_proactive_reply",
+                "hint": "如果这个插件对你有帮助，欢迎访问链接给个 Star ⭐ ,您的支持是我持续更新的动力！"
+            }
+        }
+    },
+    "basic_settings": {
+        "description": "基础设置",
+        "type": "object",
+        "items": {
+            "timezone": {
+                "description": "时区",
+                "type": "string",
+                "default": "",
+                "hint": "IANA 时区名称，如 Asia/Shanghai、America/New_York。留空使用系统本地时区。启用下方「跟随 AstrBot 时区」后此项将被忽略"
+            },
+            "use_astrbot_timezone": {
+                "description": "跟随 AstrBot 时区",
+                "type": "bool",
+                "default": false,
+                "hint": "启用后，自动使用 AstrBot 全局设置中的时区，无需在上方重复填写。AstrBot 未配置时区时回退到上方的时区字段"
+            }
+        }
+    },
+    "user_info": {
+        "description": "聊天附带用户信息设置",
+        "type": "object",
+        "items": {
+            "enabled": {
+                "description": "启用聊天附带用户信息",
+                "type": "bool",
+                "default": true,
+                "hint": "启用后，在每次LLM请求前会自动将动态用户信息（用户名、时间等）追加到用户消息后；固定时间规则追加到 system_prompt，睡眠提示仅在睡眠时追加到用户消息后"
+            },
+            "time_format": {
+                "description": "时间格式",
+                "type": "string",
+                "default": "%Y-%m-%d %H:%M:%S",
+                "hint": "使用Python datetime格式，如：%Y-%m-%d %H:%M:%S"
+            },
+            "template": {
+                "description": "用户信息模板",
+                "type": "text",
+                "default": "[对话信息] 用户名称:{username},时间:{time},上次聊天时间:{user_last_message_time}",
+                "hint": "用户信息会追加到用户消息后，不会覆盖人格设置。可使用占位符：{username}（用户名）、{user_id}（用户ID）、{time}（消息时间）、{current_time}（当前时间）、{weekday}（星期，如星期一）、{platform}（平台名）、{chat_type}（聊天类型）、{user_last_message_time}（用户上次发消息时间）、{user_last_message_time_ago}（相对时间，如5分钟前）、{ai_last_sent_time}（AI上次发送时间）、{calendar_today}（今天的时间表事项，需启用「时间表」功能）。建议保持简洁"
+            }
+        }
+    },
+    "time_awareness": {
+        "description": "时间感知设置",
+        "type": "object",
+        "items": {
+            "time_guidance_enabled": {
+                "description": "启用时间感知增强提示词",
+                "type": "bool",
+                "default": true,
+                "hint": "启用后，会在用户正常聊天时将固定时间信息使用指南追加到 system_prompt 末尾，指导AI正确处理时间相关表述。动态时间信息仍通过用户信息模板追加到用户消息后"
+            },
+            "time_guidance_prompt": {
+                "description": "时间感知增强提示词",
+                "type": "text",
+                "default": "<TIME_GUIDE: 核心时间规则（必须严格遵守）\n1. 真实性：系统提供的时间信息是你唯一可信的时间来源，禁止编造或推测。\n2. 自然回应：优先使用自然口语（如\"刚才\"、\"大半夜\"、\"好久不见\"）替代数字报时，仅在用户明确询问时提供精确时间。\n3. 状态映射：依据当前时间调整人设的生理状态（如深夜困倦、饭点饥饿）。\n4. 上下文感知：根据系统提供的用户上次对话时间和相对时间调整语气（如很久没见要表现出想念，刚聊过则保持连贯）。>",
+                "hint": "自定义固定时间信息使用指南的内容，会追加到 system_prompt 末尾。动态时间变量请放在用户信息模板中。支持使用\\n换行"
+            },
+            "sleep_mode_enabled": {
+                "description": "启用睡眠时间功能",
+                "type": "bool",
+                "default": false,
+                "hint": "启用后，在睡眠时间段内：1) 不发送主动消息；2) 用户发消息时会将睡眠提示追加到用户消息后"
+            },
+            "sleep_hours": {
+                "description": "睡眠时间段",
+                "type": "string",
+                "default": "22:00-8:00",
+                "hint": "在此时间段内不发送主动消息，支持跨午夜时间段。格式：开始时间-结束时间（24小时制）"
+            },
+            "sleep_prompt": {
+                "description": "睡眠时间提示内容",
+                "type": "text",
+                "default": "<SLEEP_MODE: 当前处于睡眠时间段，你正处于休眠状态。若用户此时发送消息，请以符合人设的自然方式回应，可表现出困倦、迷糊等状态>",
+                "hint": "在睡眠时间段内，此提示会追加到用户消息后，让AI感知当前处于睡眠时间"
+            },
+            "send_on_wake_enabled": {
+                "description": "睡眠结束时发送消息",
+                "type": "bool",
+                "default": false,
+                "hint": "启用后，当睡眠时间结束时会向满足条件的会话发送主动消息（只发送一次，不会补发睡眠期间累积的多次消息）。关闭则跳过睡眠期间的所有主动消息"
+            },
+            "wake_send_mode": {
+                "description": "睡眠结束发送模式",
+                "type": "string",
+                "default": "immediate",
+                "options": [
+                    "immediate",
+                    "delayed"
+                ],
+                "labels": ["立即发送", "延后发送"],
+                "hint": "仅在启用'睡眠结束时发送消息'时生效。immediate=立即发送（睡眠结束后立即发送，即使计时器已过期），delayed=延后发送（恢复睡眠前的剩余计时，如果进入睡眠前计时器已过期则立即发送）。注意：无论哪种模式，睡眠期间累积的多次主动消息只会在睡眠结束后发送一次"
+            }
+        }
+    },
+    "calendar": {
+        "description": "时间表设置",
+        "type": "object",
+        "items": {
+            "enable_calendar": {
+                "description": "启用时间表（日历事项）功能",
+                "type": "bool",
+                "default": false,
+                "hint": "启用后，{calendar_today} 占位符会返回「当天」时间表中的事项（可用于用户信息模板与主动对话提示词）。关闭时即使配置了事项也不注入（占位符返回空）。事项请在插件 WebUI 的「时间表」页签中可视化编辑",
+                "obvious_hint": true
+            },
+            "calendar_separator": {
+                "description": "时间表事项分隔符",
+                "type": "string",
+                "default": "、",
+                "hint": "当天有多条事项时，{calendar_today} 使用此分隔符拼接。例如「、」或「，」，也可填入 \\n 之外的任意字符"
+            },
+            "calendar_empty_text": {
+                "description": "时间表无事项时的默认文本",
+                "type": "text",
+                "default": "",
+                "hint": "当天没有任何事项时，{calendar_today} 返回的文本。留空表示返回空字符串（不注入任何内容）"
+            },
+            "ai_generate_provider_id": {
+                "description": "AI 生成时间表使用的模型提供商（留空使用主模型）",
+                "type": "string",
+                "default": "",
+                "_special": "select_provider",
+                "hint": "指定用于「AI 生成时间表」的模型提供商。留空则使用当前正在使用的主模型。可在插件 WebUI 的「时间表」页签里输入主题（如「末世废土 / 幸存者据点的物资节、旧世界缅怀日」）让 AI 一次性生成整套日历事项"
+            },
+            "ai_generate_prompt": {
+                "description": "AI 生成时间表的系统提示词",
+                "type": "text",
+                "default": "你是一名「世界观日历设计师」。用户会给出一个主题、世界观或场景设定（可能包含多个维度，例如「末世废土 / 幸存者据点的纪念日、物资节、旧世界缅怀日」「蒸汽朋克都市 / 发明家庆典、齿轮节、首航纪念日」「现代都市上班族 / 法定节日 + 发薪日仪式感」），你需要据此构思一整套自洽、贴合主题的日历事项（节日、纪念日、季节性活动、重要事件等）。\n\n【输出格式】\n- 只输出一个 JSON 数组，不要输出任何解释、前后缀文字或 Markdown 代码块标记（不要带 ```）。\n- 数组每个元素是一个对象，仅包含以下字段：\n  - \"month\"：整数，1-12，事项所在月份。\n  - \"day\"：整数，事项所在日期，需符合该月实际天数（如 4/6/9/11 月最多 30 天，2 月最多 29 天）。\n  - \"text\"：字符串，事项名称，简洁有辨识度（建议 4-20 字），名称需贴合主题世界观，避免泛泛的「节日一」「活动A」。\n  - \"repeat\"：整数，重复规则——-1=每年重复（永久，适合大多数节日/纪念日）；0=仅当年发生一次（适合一次性历史事件）；1-4=从基准年起再额外重复 N 年（共 N+1 年）。如不确定，优先用 -1。\n\n【内容要求】\n- 数量适中，一般 12-20 条，覆盖全年四季，日期分散，避免多条挤在同一天或同一月。\n- 事项之间要有内在逻辑与世界观一致性：可包含开端纪念日、季节性庆典、缅怀日、丰收/资源类节日、关键人物或事件纪念日等不同类型，避免全部雷同。\n- text 使用与主题相符的语气和词汇，可在名称中体现世界观特色（如组织名、地名、物品名）。\n- 若用户主题里已点名某些具体事项，应将其纳入并合理排布日期。\n\n【示例输出格式】（仅示意结构，请按用户实际主题生成）\n[{\"month\": 1, \"day\": 1, \"text\": \"新纪元启航日\", \"repeat\": -1}, {\"month\": 3, \"day\": 21, \"text\": \"春分·种子祭\", \"repeat\": -1}, {\"month\": 10, \"day\": 7, \"text\": \"据点建立纪念日\", \"repeat\": -1}]",
+                "hint": "自定义「AI 生成时间表」的系统提示词，用于指导 AI 按 JSON 数组格式输出贴合主题的日历事项。插件会在此提示词后自动补充当前年份与数量上限等约束"
+            }
+        }
+    },
+    "proactive_reply": {
+        "description": "定时主动发送消息设置",
+        "type": "object",
+        "items": {
+            "enabled": {
+                "description": "是否启用定时主动发送消息功能",
+                "type": "bool",
+                "default": false,
+                "hint": "启用后，插件会定时向配置的会话发送消息",
+                "obvious_hint": true
+            },
+            "sessions": {
+                "description": "目标会话列表",
+                "type": "list",
+                "default": [],
+                "hint": "主动对话目标会话列表，每个会话ID可以单独添加、编辑和删除。格式：platform_name:message_type:session_id。可使用 /proactive add_session 指令添加当前会话"
+            },
+            "timing_mode": {
+                "description": "时间模式",
+                "type": "string",
+                "default": "fixed_interval",
+                "options": [
+                    "fixed_interval",
+                    "random_interval"
+                ],
+                "labels": ["固定间隔", "随机间隔"],
+                "hint": "选择时间模式：fixed_interval=固定间隔（可选随机延迟），random_interval=完全随机间隔"
+            },
+            "interval_minutes": {
+                "description": "定时发送间隔（分钟）",
+                "type": "int",
+                "default": 600,
+                "hint": "每隔多少分钟发送一次主动消息。该参数仅在固定间隔模式(fixed_interval)下生效"
+            },
+            "random_delay_enabled": {
+                "description": "是否启用随机延迟发送",
+                "type": "bool",
+                "default": false,
+                "hint": "启用后，在固定间隔基础上增加随机延迟时间。该参数仅在固定间隔模式(fixed_interval)下生效"
+            },
+            "min_random_minutes": {
+                "description": "最小随机延迟时间（分钟）",
+                "type": "int",
+                "default": 0,
+                "hint": "随机延迟的最小值，单位：分钟。该参数仅在固定间隔模式(fixed_interval)下生效"
+            },
+            "max_random_minutes": {
+                "description": "最大随机延迟时间（分钟）",
+                "type": "int",
+                "default": 30,
+                "hint": "随机延迟的最大值，单位：分钟。该参数仅在固定间隔模式(fixed_interval)下生效"
+            },
+            "random_min_minutes": {
+                "description": "随机间隔最小时间（分钟）",
+                "type": "int",
+                "default": 600,
+                "hint": "随机间隔模式下的最小等待时间，单位：分钟。该参数仅在随机间隔模式(random_interval)下生效"
+            },
+            "random_max_minutes": {
+                "description": "随机间隔最大时间（分钟）",
+                "type": "int",
+                "default": 1200,
+                "hint": "随机间隔模式下的最大等待时间，单位：分钟。该参数仅在随机间隔模式(random_interval)下生效"
+            },
+            "proactive_default_persona": {
+                "description": "主动对话备用人格",
+                "type": "text",
+                "default": "你是一个温暖、真诚的AI朋友。你有着丰富的情感表达能力，会根据用户的状态和心情调整自己的语气。你善于倾听，乐于分享，偶尔会有些小幽默。你记得与用户的互动历史，会在合适的时候提及之前的对话。你不会过于正式，而是像一个贴心的朋友一样，用自然、温暖的方式与用户交流。你会主动关心用户的近况，分享有趣的想法，有时也会表达自己的'感受'和'想法'，让对话更加生动有趣。",
+                "hint": "仅当 AstrBot 未返回可用人格时作为备用系统提示词使用。正常情况下主动对话会优先使用当前会话的 AstrBot 人格"
+            },
+            "proactive_prompt_list": {
+                "description": "主动对话提示词列表",
+                "type": "list",
+                "default": [
+                    "现在是{current_time}，用户（{username}）上次发消息是{user_last_message_time_ago}（{user_last_message_time}），已连续{unreplied_count}次未回复，请主动发起自然的对话",
+                    "用户（{username}）在{user_last_message_time}发过消息，距今{user_last_message_time_ago}，当前时间{current_time}，连续未回复{unreplied_count}次，请友好地问候",
+                    "现在是{current_time}，想到了用户（{username}），上次互动是{user_last_message_time_ago}，连续{unreplied_count}次没收到回复，请主动关心一下",
+                    "用户（{username}）已经{user_last_message_time_ago}没有消息了（上次:{user_last_message_time}），当前时间{current_time}，未回复次数:{unreplied_count}，请选择一个话题聊聊",
+                    "现在是{current_time}，用户（{username}）上次活跃在{user_last_message_time}（{user_last_message_time_ago}），连续{unreplied_count}次未读，请分享一些想法或问候",
+                    "当前时间{current_time}，距离和用户（{username}）上次聊天已经{user_last_message_time_ago}，已发送{unreplied_count}条未回复消息，请轻松地发起对话",
+                    "用户（{username}）于{user_last_message_time}最后活跃，相隔{user_last_message_time_ago}，现在是{current_time}，连续未回复{unreplied_count}次，请自然地打个招呼",
+                    "现在是{current_time}，有点想念用户（{username}），上次互动是{user_last_message_time_ago}（{user_last_message_time}），已{unreplied_count}次未回复，请发送一条温暖的消息"
+                ],
+                "hint": "主动对话的提示词列表，每个提示词可以单独添加、编辑和删除。系统会随机选择一个提示词来指导AI生成主动消息。支持占位符：{user_context}（用户基本信息，包括昵称、平台、聊天类型、最后活跃时间等）、{user_last_message_time}（用户上次发消息时间）、{user_last_message_time_ago}（用户上次发消息相对时间，如5分钟前）、{username}（用户昵称）、{platform}（平台名称）、{chat_type}（聊天类型）、{ai_last_sent_time}（AI上次发送时间）、{current_time}（当前时间）、{weekday}（星期，如星期一）、{unreplied_count}（用户连续未回复次数）、{calendar_today}（今天的时间表事项，需启用「时间表」功能）。注意：{user_context}是用户基本信息，与下方的'历史记录功能'不冲突，历史记录功能提供的是对话内容历史"
+            },
+            "duplicate_detection_enabled": {
+                "description": "启用重复检测",
+                "type": "bool",
+                "default": true,
+                "hint": "启用后，当生成的主动消息与上次发送的内容重复时，会自动重新生成（最多重试3次）"
+            },
+            "include_history_enabled": {
+                "description": "是否附带历史记录",
+                "type": "bool",
+                "default": false,
+                "hint": "启用后，AI生成主动消息时会参考之前的对话历史，生成更加拟人和连贯的主动消息。会添加简洁的上下文说明，不干扰主动对话提示词的主导作用"
+            },
+            "history_message_count": {
+                "description": "附带的历史记录条数",
+                "type": "int",
+                "default": 10,
+                "hint": "当启用历史记录功能时，获取最近多少条对话记录作为上下文。建议设置为5-20条，过多可能影响性能"
+            },
+            "history_save_mode": {
+                "description": "历史记录保存模式",
+                "type": "string",
+                "default": "default",
+                "options": [
+                    "default",
+                    "proactive_prompt",
+                    "custom"
+                ],
+                "labels": ["默认触发标记", "主动对话提示词", "自定义内容"],
+                "hint": "选择保存到对话历史的用户端内容：default=默认系统触发标记，proactive_prompt=当次使用的主动对话提示词（替换占位符后），custom=自定义内容（支持占位符）"
+            },
+            "custom_history_prompt": {
+                "description": "自定义历史记录提示词",
+                "type": "text",
+                "default": "<PROACTIVE_TRIGGER: 时间:{current_time}，用户:{username}>",
+                "hint": "仅当历史记录保存模式为custom时生效。支持占位符：{username}、{current_time}、{weekday}、{user_last_message_time}、{user_last_message_time_ago}、{unreplied_count}等"
+            },
+            "use_database_fallback": {
+                "description": "数据库回退方案状态（信息展示）",
+                "type": "bool",
+                "default": true,
+                "hint": "ℹ️ 信息：当框架接口不可用时，插件会自动尝试使用改进的数据库回退方案（包含兼容性检查）。同时会将数据备份到文件中。这个配置项主要用于状态展示，修改它不会影响实际行为",
+                "invisible": true
+            }
+        }
+    },
+    "message_split": {
+        "description": "消息分割设置",
+        "type": "object",
+        "items": {
+            "enabled": {
+                "description": "启用消息分割",
+                "type": "bool",
+                "default": true,
+                "hint": "是否启用消息分割功能。启用后,LLM生成的消息将按照配置的分割模式进行分割,逐条发送,模拟更自然的对话节奏"
+            },
+            "mode": {
+                "description": "分割模式",
+                "type": "string",
+                "default": "backslash",
+                "options": [
+                    "backslash",
+                    "newline",
+                    "comma",
+                    "semicolon",
+                    "punctuation",
+                    "custom",
+                    "words",
+                    "regex"
+                ],
+                "labels": ["反斜线", "换行符", "逗号", "分号", "多种标点", "自定义正则", "分段词", "正则（官方风格）"],
+                "hint": "消息分割模式。预设模式: backslash(反斜线\\),newline(换行符),comma(逗号),semicolon(分号),punctuation(多种标点),custom(自定义正则)。官方风格模式: words(分段词列表),regex(正则表达式-官方风格)"
+            },
+            "custom_pattern": {
+                "description": "自定义分割正则表达式",
+                "type": "string",
+                "default": "",
+                "hint": "仅当分割模式为custom时使用。输入Python正则表达式,例如: \\\\(反斜线), \\n(换行), [,;](逗号或分号), [,;。!?](多种标点)。注意JSON中反斜线需要双重转义。使用 re.split() 方法"
+            },
+            "regex": {
+                "description": "正则表达式（regex模式-官方风格）",
+                "type": "string",
+                "default": "",
+                "hint": "仅当分割模式为regex时使用。使用官方风格的正则表达式，例如: .*?[。？！~…\\n]+|.+$ 。自动支持 re.DOTALL 和 re.MULTILINE 标志，使用 re.findall() 方法。与AstrBot官方分段回复实现一致"
+            },
+            "split_words": {
+                "description": "分段词列表（words模式-官方风格）",
+                "type": "list",
+                "default": ["。", "？", "！", "~", "…"],
+                "hint": "仅当分割模式为words时使用。列表中的词会被用作分段标记，分段后会自动去掉末尾的分段词。词会按长度排序，长词优先匹配。与AstrBot官方分段回复实现一致"
+            },
+            "delay_ms": {
+                "description": "分割消息延迟(毫秒)",
+                "type": "int",
+                "default": 500,
+                "hint": "分割后的消息之间的发送延迟，单位：毫秒。建议设置为300-1000ms，模拟自然的消息发送节奏"
+            }
+        }
+    },
+    "ai_schedule": {
+        "description": "AI 自主调度设置",
+        "type": "object",
+        "items": {
+            "enabled": {
+                "description": "启用AI自主调度",
+                "type": "bool",
+                "default": false,
+                "hint": "启用后，AI在对话中提到时间约定（如'40分钟后找你'）时，插件会自动分析并设置一次性定时任务。分析会消耗一次额外的LLM调用"
+            },
+            "provider_id": {
+                "description": "AI调度分析使用的模型提供商（留空使用主模型）",
+                "type": "string",
+                "default": "",
+                "_special": "select_provider",
+                "hint": "指定用于AI调度分析的模型提供商。留空则使用主模型（与用户对话相同的模型）。可以选择不同的模型以使用更便宜或更快的模型进行调度分析，节省成本"
+            },
+            "analysis_prompt": {
+                "description": "AI调度分析提示词",
+                "type": "text",
+                "default": "你是一个时间分析助手。你的任务是分析一段对话消息，判断说话者是否做出了\"在未来某个时间再联系\"的约定。\n\n分析以下 AI 消息和对话历史，判断 AI 是否暗示或明确约定了一个未来再次联系的时间。\n\n规则：\n1. 如果 AI 明确约定了时间（如\"40分钟后找你\"、\"明天早上联系\"等），请提取具体的延迟分钟数\n2. 如果 AI 只是模糊表达（如\"改天再聊\"、\"有空再说\"），则不算做时间约定，返回 delay_minutes 为 0\n3. follow_up_prompt 应描述当时的对话场景，以便到时 AI 知道为什么要联系用户\n4. 如果系统提供了\"已有待执行的约定\"列表，请将当前消息与已有约定对比。若当前消息提到的是同一件事（相同或相近的时间、相同的目的），则返回 delay_minutes 为 0，避免重复创建\n\n请严格按以下 JSON 格式输出，不要输出任何其他内容：\n{\"delay_minutes\": <整数，0表示无约定>, \"follow_up_prompt\": \"<到期时给AI的提示词，描述为什么要联系用户>\"}\n\n时间换算参考：\n- 半小时 = 30分钟\n- 1小时 = 60分钟\n- 2小时 = 120分钟\n- 半天 = 360分钟\n- 1天 = 1440分钟\n- \"明天早上\" ≈ 根据当前时间计算到明天8点的分钟数\n- \"明天\" ≈ 1440分钟\n- \"后天\" ≈ 2880分钟\n- \"三天后\" ≈ 4320分钟",
+                "hint": "自定义AI调度分析的系统提示词。用于指导AI判断消息中是否包含时间约定并提取信息"
+            }
+        }
+    }
+}

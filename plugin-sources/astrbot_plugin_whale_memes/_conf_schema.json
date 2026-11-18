@@ -1,0 +1,40 @@
+{
+  "spontaneous_cooldown_seconds": {"description":"闲聊主动发表情的最短间隔（秒）","type":"int","default":90},
+  "spontaneous_min_turn_gap": {"description":"闲聊主动发表情的最少回复间隔（轮）","type":"int","default":3},
+  "repeated_image_cooldown_seconds": {"description":"闲聊中相同表情的避重复时间（秒）","type":"int","default":600},
+  "allow_generation": {
+    "description": "本地没有合适表情时允许即梦生成",
+    "type": "bool",
+    "default": true
+  },
+  "daily_generation_limit": {
+    "description": "每天最多生成张数",
+    "type": "int",
+    "default": 5
+  },
+  "duplicate_cooldown_seconds": {
+    "description": "相同表情生成间隔（秒）",
+    "type": "int",
+    "default": 90
+  },
+  "library_path": {
+    "description": "本地表情包文件夹",
+    "type": "string",
+    "default": ""
+  },
+  "tos_bucket": {
+    "description": "参考图私有存储桶（未配置时暂停生成）",
+    "type": "string",
+    "default": ""
+  },
+  "tos_region": {
+    "description": "存储桶区域",
+    "type": "string",
+    "default": "cn-beijing"
+  },
+  "tos_endpoint": {
+    "description": "存储服务地址",
+    "type": "string",
+    "default": "https://tos-cn-beijing.volces.com"
+  }
+}

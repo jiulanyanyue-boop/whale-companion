@@ -1,0 +1,410 @@
+# 更新日志
+
+本项目的所有重要更改都将记录在此文件中。
+
+## [Unreleased]
+
+## [2.4.0] - 2026-07-08
+
+### 变更
+- AI 自主调度预检由宽泛关键词匹配收紧为「时间表达 + 联系/提醒动作」组合判断，减少「再见」「早上好」等普通消息触发二次 LLM 分析的概率
+- WebUI 配置保存加入配置版本校验，降低多个页面或用户同时保存时互相覆盖的风险
+
+### 性能与可靠性
+- 持久化保存改为脏标记、防抖合并与线程落盘，插件终止、强制保存和关键管理命令会立即 flush，减少频繁写盘并保证退出前尽量落盘
+- YAML 写入使用原子替换与 flush；损坏或结构非法的数据文件会改名留档，避免启动时静默覆盖可恢复数据
+- JSON → YAML 迁移增加迁移标记与已有 YAML 检测，避免旧 JSON 在后续启动中反复覆盖新数据
+- i18n 资源读取增加 locale 白名单与缓存，避免路径穿越风险和重复读盘
+- 主动发送链路统一投递失败分类与重试预算：永久错误不再无意义重试，瞬时错误推迟到后续周期处理，单个失败会话不再阻塞其他到期会话
+- 分段消息在部分片段已送达后若后续发送失败，不再按整条消息进入短间隔重试，避免用户收到重复片段
+
+### 修复
+- 投递失败时不再写入查重基线、对话历史或 AI 调度分析，避免失败消息污染后续状态
+- 配置保存失败时，聊天命令与 Web API 会回滚内存状态并返回错误，不再误报保存成功
+- 管理命令清空运行时数据时会校验保存与 flush 结果；落盘失败时恢复内存状态并提示用户
+- 修复日历重复事项按视图年月清除失败的问题
+- 修复配置或时区变更后重建计时器时可能破坏 AI 约定优先级的问题
+- 消息分割器改为按配置签名惰性重建，修复 WebUI 热更新分割配置后不立即生效的问题
+- 统一主动回复与时间感知默认值来源，避免状态展示与实际运行默认值漂移
+
+### 杂项
+- 更新插件版本号与 README 版本徽章到 `v2.4.0`
+- 修正 README 快速上手教程地址
+
+## [2.3.0] - 2026-06-09
+
+## 本次更新经历较大重构,如有问题请反映到 https://github.com/AstraSolis/astrbot_proactive_reply/issues
+
+### 新增
+- webui面板
+- 智能时间表（日历事项）与 `{calendar_today}` 占位符(需要开启时间表功能,然后在webui配置) (#16)
+  - WebUI 新增「时间表」页签：以月历视图为任意日期添加「节日」/「事项」，每条可设重复规则（不重复仅当年 / 重复 1–4 年 / 每年永久）
+  - 新增 `core/calendar_store.py` 与全局共享的 `calendar_data.yaml`（所有会话共用，完全本地），支持导入 / 导出（合并 / 替换两种模式）与清空
+  - 新增 `calendar.*` 配置（`enable_calendar` / `calendar_separator` / `calendar_empty_text`），`{calendar_today}` 按开关注入当天事项（关闭时返回空）
+- 内置「AI 生成时间表」功能 (#19)：在 WebUI「时间表」页签输入主题或世界，由 AI 一次性生成整套贴合主题的节日 / 纪念日
+  - 配置新增 `calendar.ai_generate_provider_id`（生成所用模型，`select_provider`，留空用主模型）与 `calendar.ai_generate_prompt`（生成系统提示词，带默认值），参考「AI 自主调度」实现
+  - WebUI 新增「AI 生成」面板：模型下拉 + 主题输入框 + 生成按钮；生成结果先以**可编辑预览**呈现（每条可改月/日/名称/重复规则、逐条删除、手动新增一行），确认后再选择「追加到现有」或「清空并替换」
+  - 新增后端 `llm/calendar_generator.py`（提示词组织 + LLM 调用 + JSON 事项解析）与 3 个 API：`/calendar/ai/options`、`/calendar/ai/generate`、`/calendar/ai/apply`
+  - 生成事项经 `normalize_event` 校验，应用复用 `import_events`（自动分配 id、受数量上限约束）
+
+### 变更
+- 持久化文件 `persistent_data.yaml` 重排为 **session-major（按会话聚合）** 布局，更直观美观 (#18)
+  - 顶层拆为 `meta`（全局：`data_version` / `last_update` / `timezone_signature` / `timing_config_signature`）与 `sessions`（按会话 UMO 聚合）
+  - 每个会话固定分块：`user`（用户信息）/ `timers`（计时器）/ `activity`（活动统计）/ `ai_scheduled`（AI 约定）/ `last_proactive_message`（最近一条主动消息）
+  - 长主动消息在无行尾空白时以字面量块样式（`|`）写出，中文与 emoji 不转义；含行尾空白时自动回退为引号样式以保证无损
+  - 兼容读取旧的扁平格式（首次保存时自动升级为新布局）；`data_version` 升至 `3.1`
+- 持久化文件由 JSON 迁移到 YAML，更直观、便于查看与手动编辑 (#17)
+  - `persistent_data.json` → `persistent_data.yaml`，`calendar_data.json` → `calendar_data.yaml`
+  - 首次启动自动迁移历史 `.json` 文件，旧文件备份为 `.json.bak`（可回滚）
+  - 时间表导入/导出改用 YAML（弃用 JSON）
+  - 新增 `core/_datafile.py` 统一 YAML 读取 / 原子写入 / JSON→YAML 迁移逻辑（优先使用 libyaml C 扩展提速）
+  - 加载时对关键字段做类型规整，防止 YAML 隐式转型（如纯数字昵称 / QQ 号被误转为整数）
+  - `data_version` 升至 `3.0`；新增 `pyyaml` 依赖
+
+### 重构
+- 占位符统一为单一注册表 + 解析器 (#15)：在 `llm/placeholder_utils.py` 集中声明所有占位符的分组与说明，用户信息模板、主动提示词、前端速查面板与 Web API 均从该注册表派生，避免多处定义漂移
+- 抽取消息分割逻辑为独立的 `MessageSplitter`(`llm/message_splitter.py`)，精简 `message_generator.py`
+- 新增 `constants.py` 统一历史条数上限与默认/旧版时间感知提示词，消除多处硬编码
+- 按职责拆分超大文件 `tasks/proactive_task.py`(1197→394 行)：时区、计时器、睡眠、AI 调度、发送重试、状态查询分别独立为 Mixin(`tasks/_timezone_mixin.py` 等)，主循环与任务控制保留在 `ProactiveTaskManager`
+- 按命令域拆分 `commands/handlers.py`(913→54 行)：状态、会话、测试、显示、管理、通用命令分别独立为 Mixin(`commands/_status_handlers.py` 等)，`CommandHandlers` 仅负责组合
+  - 上述拆分行为保持不变(各方法体逐一经 AST 校验与原实现一致)，公共 API 与方法签名不变
+
+### 修复
+- 对敏感 `/proactive` 子命令（管理 / 调试 / 测试 / 配置 / 重启）叠加管理员权限校验（基于 `PermissionType.ADMIN`），普通成员仅可使用 `status` / `add_session` / `remove_session` / `help`
+- 持久化目录优先使用 `StarTools.get_data_dir()` 定位，避免数据落到错误路径 (#12)
+- 对管理员配置的消息分割正则(custom/regex)增加长度与复杂度提示，并对超长文本跳过正则分割整条发送，缓解 ReDoS 理论风险 (#13)
+
+### 杂项
+- 使用 `ruff format` 统一格式化全部代码 (#10)，并移除未使用的 `datetime` 导入 (#11)
+
+## [2.2.0] - 2026-05-31
+
+### 新增
+- 可视化管理面板（WebUI）迁移至 AstrBot Plugin Pages 统一入口，从 AstrBot 插件页面直接打开
+- WebUI 新增「AI 约定」页与会话详情弹窗：查看一次性调度任务的倒计时 / 执行时间 / 触发提示词并可取消，会话详情展示运行状态、最后发送、失败计数等
+- WebUI 与后端 API 全面国际化（i18n），支持中英文双语切换
+- 主循环改用 Event 驱动即时唤醒：添加 / 移除会话、重启等操作即时生效，降低空转
+- AI 调度新增 `fire_time_utc`，任务比较与时区重算优先使用 UTC 时间戳，跨时区更稳健
+
+### 重构
+- WebUI 拆分 HTML / CSS / JS，重做侧栏布局并新增会话搜索，同步更新 i18n
+- 稳定动态提示词注入位置(#7)
+  - 按官方 LLM 请求钩子指南注入动态上下文：https://docs.astrbot.app/dev/star/guides/listen-message-event.html#llm-请求时
+  - 固定规则进 system_prompt，动态上下文进用户提示词。固定规则包括人格、固定时间感知提示词、主动对话里的历史使用说明、调度分析规则。动态上下文包括普通聊天的用户信息模板内容、睡眠提示、主动对话final_prompt、调度分析里的当前时间、已有约定和待分析 AI 消息。
+
+### 修复
+- 改用 `extra_user_content_parts` 注入附带用户信息，修复每轮变化内容污染 system_prompt 前缀缓存的问题（最低 AstrBot 版本升至 `>=4.24.0`）
+- 提升 WebUI 异常场景下的稳定性
+- 修正主动消息人格解析(#8)
+  - 优先使用 AstrBot 解析后的人格结果，避免内置 default 空人格被误判为匹配失败或回退到其他人格。
+  - 将插件主动对话人格配置文案调整为备用人格，明确其仅在 AstrBot 未返回可用人格时生效
+
+## [2.1.0] - 2026-04-25
+
+### 新增
+- 统一时区处理支持自定义时区
+
+### 修复
+- 修复持久化加载控制流并清理旧版兼容代码
+- 清理 AstrBot 压缩包安装残留目录并阻止心念重复加载
+
+## [2.0.1] - 2026-04-08
+
+## 修复
+- 主动回复时人格匹配失败的问题
+
+## [2.0.0] - 2026-02-25
+
+## 注意
+- 此版本使用了新版api,并删除了旧版本兼容代码,如果更新版本后依然有兼容性问题,请反馈到issues
+- 整理了插件配置选项,部分配置可能丢失,请重新配置
+
+### 新增
+
+- AI 自主调度
+  - 智能时间约定检测：AI 在对话中提到时间约定时(如"40分钟后找你"),插件会自动分析并设置一次性定时任务
+  - 关键词预检测：使用轻量级关键词匹配，避免不必要的 LLM 调用
+  - 独立模型选择：支持为调度分析指定不同的模型提供商，可使用更便宜或更快的模型节省成本
+  - 重复检测：自动注入已有待执行的约定，避免重复创建相同任务
+  - 自定义分析提示词：可配置 AI 调度分析的系统提示词
+
+- 新增官方风格的消息分割模式
+  - words 模式：使用分段词列表分割消息
+  - regex 模式：使用正则表达式分割消息
+  - 提供更多样化的消息分割选择
+
+- 新增"聊天附带用户信息"功能开关
+  - 支持启用/禁用用户信息附加功能
+  - 提供更灵活的配置选项
+
+### 重构
+
+- 迁移 LLM 调用至 AstrBot v4.5.7+ 新版 API
+  - provider.text_chat() 替换为 context.llm_generate()
+  - get_using_provider() 替换为 get_current_chat_provider_id()
+  - provider_manager.personas 替换为 persona_manager.get_all_personas()
+  - 删除已失效的 selected_default_persona 缓存回退逻辑
+  - 适配 Persona SQLModel 字段 (persona_id/system_prompt)
+
+- 迁移至新版 AstrBot 插件规范
+  - 移除手动 asyncio.create_task(initialize()) 双重初始化逻辑
+  - 修复 on_llm_request 和 after_message_sent 钩子签名
+  - 移除所有命令方法的冗余 _ignore 参数
+  - add_message_pair 改用类型化消息段，兼容旧版回退
+  - **最低 AstrBot 版本升至 4.16.0**
+
+- 重构睡眠时间相关逻辑
+  - 修复睡眠期间配置变化导致的计时器异常
+  - 优化睡眠期间性能（检查频率降低80%）
+  - 修复睡眠结束时间计算不准确的问题
+  - 完善会话删除时的数据清理
+
+-  统一日志输出格式 
+
+- 迁移持久化数据至 data/plugin_data 目录
+  - 新路径：data/plugin_data/astrbot_proactive_reply/
+
+### 修复
+
+- 修复命令消息检测逻辑，避免调试信息触发 AI 调度
+  - 改为检查 event.message_obj.message_str（保留原始 / 前缀）
+  - 正确识别所有插件的命令消息，提前返回跳过后续处理
+  - 同时修复了"跳过命令消息时间记录"功能
+
+### 文档
+
+- 更新文档和部分描述
+
+## [1.5.0] - 2026-02-06
+
+### 新增
+
+- 添加历史记录保存模式配置
+  - 新增 `history_save_mode` 配置项，支持三种模式：
+    - `default`: 默认系统触发标记 `<SYSTEM_TRIGGER: ...>`
+    - `proactive_prompt`: 使用当次触发的主动对话提示词（已替换占位符）
+    - `custom`: 自定义内容（支持占位符）
+  - 新增 `custom_history_prompt` 配置项，用于自定义模式的提示词模板
+  - 支持所有标准占位符：`{username}`、`{current_time}`、`{unreplied_count}` 等
+
+- 添加星期占位符 `{weekday}`
+  - 输出格式：星期一、星期二...星期日
+  - 支持场景：主动对话提示词、用户信息模板、自定义历史记录提示词
+
+### 重构
+
+- 统一默认配置来源为 schema 文件
+  - 移除 `ConfigManager` 中硬编码的 `DEFAULT_CONFIG`
+  - 新增 `_load_default_config_from_schema()` 方法从 `_conf_schema.json` 动态读取默认值
+  - 确保单一数据源，避免配置默认值不一致
+
+### 修复
+
+- 修复混合计时器配置变化后不生效的问题
+  - 新增配置签名机制，自动检测计时配置变化
+  - 配置变化时自动清除计时器并重新计算
+  - 配置签名持久化，支持跨插件重载的检测
+  - 移除会话时同步清理对应计时器
+
+### 其他
+
+- 调整图标大小
+
+## [1.4.0] - 2026-02-01
+
+### 新增
+
+- 添加主动消息重复检测功能
+  - 检测生成的消息是否与上次发送的内容重复
+  - 重复时自动重新生成（最多重试3次）
+  - 新增 `duplicate_detection_enabled` 配置项（默认启用）
+
+- 添加未回复计数器功能
+  - 新增 `{unreplied_count}` 占位符，追踪用户连续未回复次数
+  - Bot 发送主动消息后计数 +1，用户回复后重置为 0
+
+### 增强
+
+- 优化主动对话提示词与时间感知系统
+  - **注意**：如果使用默认配置，请手动更新配置文件中的提示词，或删除插件配置重新安装以获取最新的提示词
+  - 修改提示词：
+    - 时间感知增强提示词:
+      ```
+      <TIME_GUIDE: 核心时间规则（必须严格遵守）
+      1. 真实性：系统提供的时间信息是你唯一可信的时间来源，禁止编造或推测。
+      2. 自然回应：优先使用自然口语（如"刚才"、"大半夜"、"好久不见"）替代数字报时，仅在用户明确询问时提供精确时间。
+      3. 状态映射：依据当前时间调整人设的生理状态（如深夜困倦、饭点饥饿）。
+      4. 上下文感知：根据与用户上次对话的时间差（{user_last_message_time_ago}）调整语气（如很久没见要表现出想念，刚聊过则保持连贯）。>
+      ```
+    - 用户信息模板:
+      ```
+      [对话信息] 用户名称:{username},时间:{time},上次聊天时间:{user_last_message_time}
+      ```
+    - 睡眠时间提示:
+      ```
+      <SLEEP_MODE: 当前处于睡眠时间段，你正处于休眠状态。若用户此时发送消息，请以符合人设的自然方式回应，可表现出困倦、迷糊等状态>
+      ```
+    - 主动对话提示词:
+      ```
+      现在是{current_time}，用户（{username}）上次发消息是{user_last_message_time_ago}（{user_last_message_time}），已连续{unreplied_count}次未回复，请主动发起自然的对话
+      ```
+      ```
+      用户（{username}）在{user_last_message_time}发过消息，距今{user_last_message_time_ago}，当前时间{current_time}，连续未回复{unreplied_count}次，请友好地问候
+      ```
+      ```
+      现在是{current_time}，想到了用户（{username}），上次互动是{user_last_message_time_ago}，连续{unreplied_count}次没收到回复，请主动关心一下
+      ```
+      ```
+      用户（{username}）已经{user_last_message_time_ago}没有消息了（上次:{user_last_message_time}），当前时间{current_time}，未回复次数:{unreplied_count}，请选择一个话题聊聊
+      ```
+      ```
+      现在是{current_time}，用户（{username}）上次活跃在{user_last_message_time}（{user_last_message_time_ago}），连续{unreplied_count}次未读，请分享一些想法或问候
+      ```
+      ```
+      当前时间{current_time}，距离和用户（{username}）上次聊天已经{user_last_message_time_ago}，已发送{unreplied_count}条未回复消息，请轻松地发起对话
+      ```
+      ```
+      用户（{username}）于{user_last_message_time}最后活跃，相隔{user_last_message_time_ago}，现在是{current_time}，连续未回复{unreplied_count}次，请自然地打个招呼
+      ```
+      ```
+      用户（{username}）于{user_last_message_time}最后活跃，相隔{user_last_message_time_ago}，现在是{current_time}，连续未回复{unreplied_count}次，请自然地打个招呼
+      ```
+
+## [1.3.4] - 2026-01-21
+
+### 修复
+
+- 修复主动消息保存后导致 AI 无法正常回复的问题
+  - 调整 `add_message_pair` 格式优先级：优先使用字符串格式，避免 Pydantic 验证失败
+  - 添加 `/proactive manage fix_history` 命令，可修复旧版插件保存的列表格式历史记录
+
+### 重要!!!如果你使用了v1.3.3版本,出现了`Error occurred while processing agent: 2 validation errors for Messagecontent.str`错误,请使用`/proactive manage fix_history`命令修复
+
+## [1.3.3] - 2026-01-20
+
+### 增强
+
+- 优化主动对话历史记录的系统触发标记
+  - 使用 <SYSTEM_TRIGGER> 标签格式替代简单的中括号标记
+  - 明确标注"非用户实际发言"避免 AI 误解为用户消息
+  - 嵌入真实触发时间戳提供精确的对话上下文
+
+### 修复
+
+- 主动消息无法获取真实对话历史的问题
+  - 优先读取 `conversation.content` 字段 (AstrBot v4+)，回退到 `history` 字段保持向后兼容
+  - 支持列表格式和 JSON 字符串格式
+
+## [1.3.2] - 2026-01-08
+
+### 修复
+
+- 修复主动消息历史未附带到 LLM 请求的问题
+- 解决了主动消息保存到历史后，用户对话时 AI 无法获取之前的主动消息的问题
+
+## [1.3.1] - 2026-01-07
+
+### 修复
+
+- 修复人格缓存导致切换后不更新的问题，从 `provider_settings.default_personality` 动态获取默认人格
+- 解决了在 AstrBot WebUI 切换全局默认人格后，主动消息仍使用旧人格的问题
+
+## [1.3.0] - 2025-12-29
+
+### 新增
+
+- 重构主动消息为混合计时器模式，采用更智能的计时策略
+  - AI 发消息后自动刷新计时器，避免频繁打扰
+  - 智能睡眠（1~300秒），减少无效轮询
+  - 新增 `session_next_fire_times` 和 `session_sleep_remaining` 运行时数据
+  - `/proactive status` 现在显示各会话的下次发送时间
+- 睡眠时间功能增强，重构活跃时间段为睡眠时间功能
+  - 新增 `wake_send_mode` 配置项，支持三种睡眠结束模式：跳过/立即发送/延后发送
+  - 延后发送模式保存并恢复睡眠前剩余计时
+  - 睡眠时间内不发送主动消息
+  - 睡眠时间内用户发消息时附加睡眠提示到系统提示词
+- 时间感知增强提示词支持配置化，新增 `time_awareness` 配置节，支持启用/禁用时间引导
+- 统一占位符支持，用户信息模板与主动对话提示词支持相同的占位符
+  - 新增: `{current_time}`, `{user_last_message_time}`, `{user_last_message}`
+  - 添加 `_safe_format_template()` 使用正则替换避免特殊字符问题
+
+### 变更
+
+- 优化主动对话提示词，改进内置的主动对话提示词质量
+- 精简时间感知增强提示词，移除冗余内容
+
+### 文档
+
+- 添加平台配置和跨平台使用注意事项
+- 将 "定时发送" 修改为 "主动对话" 以更准确表达功能
+- 优化插件行为页面的命令描述格式
+- 更新插件描述和标签
+
+## [1.2.1] - 2025-12-12
+
+### 新增
+
+- 重构主动消息计时逻辑，从固定间隔循环改为基于 AI 最后一条消息的时间计时 ([#2](https://github.com/AstraSolis/astrbot_proactive_reply/issues/2))
+  - 命令消息（以 `/` 开头）不再触发时间记录
+  - 支持每个会话独立的随机间隔，发送后自动生成新的随机值
+  - 新增方法：`get_session_target_interval`、`get_minutes_since_ai_last_message`
+- 配置面板新增 Star 引导，在配置面板顶部添加 GitHub Star 引导
+
+### 变更
+
+- 分离运行时数据存储，创建 `RuntimeDataStore` 单例类，独立管理运行时数据
+  - 将 `session_user_info`、`ai_last_sent_times`、`last_sent_times` 从 config 对象中分离
+  - 更新 `PersistenceManager` 使用 `RuntimeDataStore` 加载/保存数据
+  - 从 `_conf_schema.json` 移除动态数据项定义
+
+### 修复
+
+- 修复配置加载状态检测问题，解决了启动时始终提示"首次运行"的问题
+- 修复 `show_config` 方法中 `sessions` 变量未定义导致 `/proactive config` 命令执行失败的问题
+- 完善测试命令功能
+  - `test history`: 显示详细历史记录内容而非仅显示条数
+  - `test prompt`: 使用 `build_combined_system_prompt` 保持与实际生成逻辑一致
+
+## [1.2.0] - 2025-11-27
+
+### 重构
+- 模块化重构插件架构 - 将原有单体 main.py 拆分为清晰的模块结构，提升代码可维护性和可扩展性
+- 持久化数据存储路径优化 - 调整数据存储位置，提升安全性和规范性
+
+### 修复
+- 修复命令处理器参数不匹配 - 解决命令执行时参数传递错误导致的执行失败问题
+- 修复命令参数错误 - 优化测试与配置显示功能，提升命令系统稳定性
+
+### 其他
+- 插件名称改为"心念"
+- 更换插件 Logo 
+
+## [1.1.0] - 2025-11-23
+
+### 新增
+
+- 语句分割功能
+  - 使用正则表达式自定义分割规则
+  - 提供了多种预设分割模式（包括反斜线分割、换行分割等）
+- 时间感知功能
+  - 改进了时间占位符的处理逻辑
+  - 优化了提示词模板，加强了对 AI 输出时间的约束
+
+## [1.0.1] - 2025-07-24
+
+### 修复
+
+- 重构 proactive_message_loop 函数
+- 使用 AstrBot 标准 conversation_manager.update_conversation 接口
+- 规范化数据持久化路径处理,新增 _get_plugin_data_dir() 方法使用标准插件数据目录
+- 精确异常类型处理替代宽泛Exception捕获
+
+## [1.0.0] - 2025-07-23
+
+### 正式版上线
+
+- **智能用户信息附加** - 自动在 AI 对话中附加用户信息，支持自定义模板和占位符
+- **基于 LLM 的主动对话** - 告别预设模板，使用 LLM 生成个性化主动消息
+- **人格系统深度集成** - 自动检测并组合 AstrBot 人格设置与主动对话指令
+- **历史记录功能增强** - 支持基于对话历史的智能主动消息生成，保持对话连贯性
+- **双时间模式** - 支持固定间隔和随机间隔两种时间模式

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whale-agent.local/contracts/device-events.schema.json",
+  "title": "Whale Device Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["request_id", "device_id", "status", "error_code", "message", "artifacts", "evidence"],
+  "properties": {
+    "request_id": { "type": "string", "minLength": 1 },
+    "device_id": { "type": "string", "minLength": 3 },
+    "status": { "enum": ["ok", "denied", "queued", "failed", "needs_unlock"] },
+    "error_code": { "type": "string" },
+    "message": { "type": "string" },
+    "artifacts": { "type": "array", "items": { "type": "object" } },
+    "evidence": { "type": "object" }
+  }
+}

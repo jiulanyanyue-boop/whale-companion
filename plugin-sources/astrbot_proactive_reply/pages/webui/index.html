@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title></title>
+    <script>
+      // 在样式加载前确定主题，避免浅色闪烁（FOUC）。优先级：用户记忆 > 系统偏好。
+      (function () {
+        try {
+          var stored = localStorage.getItem("astrbot-proactive-theme");
+          var theme =
+            stored === "dark" || stored === "light"
+              ? stored
+              : window.matchMedia &&
+                  window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-user">
+          <div class="avatar" id="sidebar-avatar" aria-hidden="true">
+            <img src="./logo.png" alt="" class="avatar-img" />
+          </div>
+          <div class="user-meta">
+            <div class="user-name" id="sidebar-plugin-name"></div>
+            <div class="user-role" id="sidebar-plugin-role"></div>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebar-nav" aria-label="">
+          <div class="nav-section-label" id="nav-section-main"></div>
+          <button type="button" class="nav-item active" data-view="dashboard" id="nav-dashboard">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </span>
+            <span class="nav-label" id="nav-label-dashboard"></span>
+          </button>
+          <button type="button" class="nav-item" data-view="sessions" id="nav-sessions">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </span>
+            <span class="nav-label" id="nav-label-sessions"></span>
+          </button>
+          <button type="button" class="nav-item" data-view="schedules" id="nav-schedules">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </span>
+            <span class="nav-label" id="nav-label-schedules"></span>
+          </button>
+          <button type="button" class="nav-item" data-view="calendar" id="nav-calendar">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </span>
+            <span class="nav-label" id="nav-label-calendar"></span>
+          </button>
+          <button type="button" class="nav-item" data-view="placeholders" id="nav-placeholders">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            </span>
+            <span class="nav-label" id="nav-label-placeholders"></span>
+          </button>
+          <button type="button" class="nav-item" data-view="commands" id="nav-commands">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            </span>
+            <span class="nav-label" id="nav-label-commands"></span>
+          </button>
+          <button type="button" class="nav-item" data-view="config" id="nav-config">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+            </span>
+            <span class="nav-label" id="nav-label-config"></span>
+          </button>
+          <button type="button" class="nav-item" data-view="about" id="nav-about">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            </span>
+            <span class="nav-label" id="nav-label-about"></span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span id="sidebar-version"></span>
+        </div>
+      </aside>
+
+      <div class="app-main">
+        <header class="topbar">
+          <button type="button" class="menu-toggle" id="menu-toggle" aria-label="">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+
+          <div class="topbar-title" id="topbar-title"></div>
+
+          <div class="topbar-tools">
+            <button type="button" class="tool-btn" id="btn-theme" title="" aria-label="">
+              <svg class="icon-theme-light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              <svg class="icon-theme-dark" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+            <button type="button" class="tool-btn" id="btn-refresh" title="">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            </button>
+            <button type="button" class="tool-btn tool-btn-primary" id="btn-add-session" style="display:none;">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+        </header>
+
+        <main class="content">
+          <div id="global-error" class="alert alert-error" style="display:none;" role="alert"></div>
+
+          <div class="view view-active" id="view-dashboard" data-view="dashboard">
+            <header class="page-header">
+              <h1 class="page-title" id="page-title-dashboard"></h1>
+            </header>
+
+            <section class="content-section">
+              <h2 class="section-title" id="section-today"></h2>
+              <div class="metrics-grid" id="dash-stats-grid">
+                <div class="loading"><div class="spinner"></div><span class="loading-text"></span></div>
+              </div>
+            </section>
+
+            <section class="content-section">
+              <h2 class="section-title" id="section-recent"></h2>
+              <div class="panel-grid">
+                <article class="panel">
+                  <header class="panel-head">
+                    <h3 class="panel-title" id="hdr-plugin-status"></h3>
+                    <button type="button" class="panel-action" id="btn-refresh-panel" title="">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    </button>
+                  </header>
+                  <div class="panel-body" id="plugin-status-rows">
+                    <div class="loading"><div class="spinner"></div><span class="loading-text"></span></div>
+                  </div>
+                </article>
+
+                <article class="panel">
+                  <header class="panel-head">
+                    <h3 class="panel-title" id="hdr-recent-activity"></h3>
+                  </header>
+                  <div class="panel-body panel-body-flush" id="timeline">
+                    <div class="loading"><div class="spinner"></div><span class="loading-text"></span></div>
+                  </div>
+                </article>
+              </div>
+            </section>
+          </div>
+
+          <div class="view" id="view-schedules" data-view="schedules">
+            <header class="page-header">
+              <h1 class="page-title" id="page-title-schedules"></h1>
+            </header>
+            <article class="panel panel-table">
+              <header class="panel-head">
+                <h3 class="panel-title" id="hdr-schedule-list"></h3>
+              </header>
+              <div class="panel-body panel-body-flush" id="schedules-container">
+                <div class="loading"><div class="spinner"></div><span class="loading-text"></span></div>
+              </div>
+            </article>
+          </div>
+
+          <div class="view" id="view-placeholders" data-view="placeholders">
+            <header class="page-header">
+              <h1 class="page-title" id="page-title-placeholders"></h1>
+              <p class="page-subtitle" id="placeholders-subtitle"></p>
+            </header>
+            <div id="placeholders-container"></div>
+          </div>
+
+          <div class="view" id="view-commands" data-view="commands">
+            <header class="page-header">
+              <h1 class="page-title" id="page-title-commands"></h1>
+              <p class="page-subtitle" id="commands-subtitle"></p>
+            </header>
+            <div id="commands-container"></div>
+          </div>
+
+          <div class="view" id="view-config" data-view="config">
+            <header class="page-header">
+              <h1 class="page-title" id="page-title-config"></h1>
+              <p class="page-subtitle" id="config-subtitle"></p>
+            </header>
+
+            <div class="config-tabs" id="config-tabs" role="tablist" aria-label=""></div>
+
+            <div class="config-panel" id="config-panel">
+              <div class="loading"><div class="spinner"></div><span class="loading-text"></span></div>
+            </div>
+
+            <div class="config-actionbar" id="config-actionbar" style="display:none;">
+              <span class="config-dirty-hint" id="config-dirty-hint"></span>
+              <div class="config-actionbar-buttons">
+                <button type="button" class="btn btn-primary btn-sm" id="config-save"></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="view" id="view-calendar" data-view="calendar">
+            <header class="page-header">
+              <h1 class="page-title" id="page-title-calendar"></h1>
+              <p class="page-subtitle" id="calendar-subtitle"></p>
+            </header>
+
+            <div id="calendar-disabled-state" style="display:none;"></div>
+
+            <section class="content-section" id="calendar-body" style="display:none;">
+              <div class="cal-tabs" id="cal-tabs" role="tablist">
+                <button type="button" class="cal-tab active" data-cal-tab="calendar" id="cal-tab-calendar" role="tab" aria-selected="true"></button>
+                <button type="button" class="cal-tab" data-cal-tab="ai" id="cal-tab-ai" role="tab" aria-selected="false"></button>
+              </div>
+
+              <div class="cal-tabpanel" id="cal-tabpanel-ai" data-cal-panel="ai" role="tabpanel" hidden>
+              <article class="panel">
+                <header class="panel-head">
+                  <h3 class="panel-title" id="cal-ai-title"></h3>
+                </header>
+                <div class="panel-body">
+                  <p class="cal-ai-subtitle" id="cal-ai-subtitle"></p>
+                  <div class="cal-ai-form">
+                    <div class="cal-form-field cal-ai-provider-field">
+                      <label id="cal-ai-provider-label" for="cal-ai-provider"></label>
+                      <select id="cal-ai-provider"></select>
+                      <span class="cal-field-hint" id="cal-ai-provider-hint"></span>
+                    </div>
+                    <div class="cal-form-field">
+                      <label id="cal-ai-prompt-label" for="cal-ai-prompt-input"></label>
+                      <textarea id="cal-ai-prompt-input" rows="2" maxlength="200"></textarea>
+                      <span class="cal-field-hint" id="cal-ai-prompt-hint"></span>
+                    </div>
+                    <div class="cal-ai-actions">
+                      <button type="button" class="btn btn-primary btn-sm" id="cal-ai-generate"></button>
+                    </div>
+                  </div>
+                  <div class="cal-ai-result" id="cal-ai-result" style="display:none;">
+                    <div class="cal-ai-result-head">
+                      <span class="cal-ai-result-title" id="cal-ai-result-title"></span>
+                      <div class="cal-ai-result-head-actions">
+                        <button type="button" class="btn btn-ghost btn-sm cal-ai-add-row" id="cal-ai-add-row"></button>
+                        <button type="button" class="btn btn-ghost btn-sm cal-ai-clear-all" id="cal-ai-clear-all"></button>
+                      </div>
+                    </div>
+                    <div class="cal-ai-preview" id="cal-ai-preview"></div>
+                    <p class="cal-field-hint cal-ai-apply-hint" id="cal-ai-apply-hint"></p>
+                    <div class="cal-ai-result-actions">
+                      <button type="button" class="btn btn-ghost btn-sm" id="cal-ai-apply-merge"></button>
+                      <button type="button" class="btn btn-primary btn-sm" id="cal-ai-apply-replace"></button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+              </div>
+
+              <div class="cal-tabpanel" id="cal-tabpanel-calendar" data-cal-panel="calendar" role="tabpanel">
+              <article class="panel">
+                <header class="panel-head calendar-head">
+                  <div class="calendar-nav">
+                    <button type="button" class="tool-btn" id="cal-prev" title="">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                    <h3 class="panel-title calendar-month-title" id="calendar-month-title"></h3>
+                    <button type="button" class="tool-btn" id="cal-next" title="">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="cal-today"></button>
+                  </div>
+                  <div class="calendar-tools">
+                    <button type="button" class="btn btn-ghost btn-sm" id="cal-import"></button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="cal-export"></button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="cal-clear-month"></button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="cal-clear-year"></button>
+                    <button type="button" class="btn btn-danger btn-sm" id="cal-clear-all"></button>
+                    <input type="file" id="cal-import-file" accept=".yaml,.yml,application/x-yaml,text/yaml" hidden />
+                  </div>
+                </header>
+                <div class="panel-body">
+                  <div class="calendar-weekdays" id="calendar-weekdays"></div>
+                  <div class="calendar-grid" id="calendar-grid"></div>
+                </div>
+              </article>
+              </div>
+            </section>
+          </div>
+
+          <div class="view" id="view-sessions" data-view="sessions">
+            <header class="page-header">
+              <h1 class="page-title" id="page-title-sessions"></h1>
+            </header>
+
+            <section class="content-section">
+              <div class="metrics-grid metrics-grid-3" id="sess-stats-grid">
+                <div class="metric-card">
+                  <div class="metric-card-top">
+                    <span class="metric-label" id="lbl-stat-total"></span>
+                  </div>
+                  <div class="metric-value" id="count-total">—</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-card-top">
+                    <span class="metric-label" id="lbl-stat-active"></span>
+                  </div>
+                  <div class="metric-value metric-value--success" id="count-active">—</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-card-top">
+                    <span class="metric-label" id="lbl-stat-inactive"></span>
+                  </div>
+                  <div class="metric-value" id="count-inactive">—</div>
+                </div>
+              </div>
+            </section>
+
+            <article class="panel panel-table">
+              <header class="panel-head">
+                <h3 class="panel-title" id="hdr-session-list"></h3>
+              </header>
+              <div class="panel-body panel-body-flush" id="sessions-container">
+                <div class="loading"><div class="spinner"></div><span class="loading-text"></span></div>
+              </div>
+            </article>
+          </div>
+
+          <div class="view" id="view-about" data-view="about">
+            <header class="page-header">
+              <h1 class="page-title" id="page-title-about"></h1>
+              <p class="page-subtitle" id="about-subtitle"></p>
+            </header>
+
+            <section class="content-section">
+              <article class="panel">
+                <header class="panel-head">
+                  <h3 class="panel-title" id="hdr-about-version"></h3>
+                </header>
+                <div class="panel-body" id="about-version-rows">
+                  <div class="loading"><div class="spinner"></div><span class="loading-text"></span></div>
+                </div>
+              </article>
+            </section>
+
+            <section class="content-section">
+              <article class="panel">
+                <header class="panel-head">
+                  <h3 class="panel-title" id="hdr-about-changelog"></h3>
+                </header>
+                <div class="panel-body changelog-body" id="about-changelog">
+                  <div class="loading"><div class="spinner"></div><span class="loading-text"></span></div>
+                </div>
+              </article>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+    <div class="dialog-overlay" id="add-dialog" style="display:none;" role="dialog" aria-modal="true">
+      <div class="dialog">
+        <header class="dialog-header" id="dialog-add-title"></header>
+        <div class="dialog-body">
+          <label for="input-session-id" id="label-session-id"></label>
+          <input type="text" id="input-session-id" />
+          <div class="form-hint" id="session-id-hint"></div>
+        </div>
+        <footer class="dialog-footer">
+          <button type="button" class="btn btn-ghost" id="btn-dialog-cancel"></button>
+          <button type="button" class="btn btn-primary" id="submit-btn"></button>
+        </footer>
+      </div>
+    </div>
+
+    <div class="dialog-overlay" id="session-detail-dialog" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+      <div class="dialog dialog-lg">
+        <header class="dialog-header" id="detail-title"></header>
+        <div class="dialog-body dialog-body-scroll" id="detail-body"></div>
+        <footer class="dialog-footer">
+          <button type="button" class="btn btn-ghost" id="btn-detail-close"></button>
+        </footer>
+      </div>
+    </div>
+
+    <div class="dialog-overlay" id="confirm-dialog" style="display:none;" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+      <div class="dialog">
+        <header class="dialog-header" id="confirm-title"></header>
+        <div class="dialog-body" id="confirm-message"></div>
+        <footer class="dialog-footer">
+          <button type="button" class="btn btn-ghost" id="btn-confirm-cancel"></button>
+          <button type="button" class="btn btn-danger" id="btn-confirm-ok"></button>
+        </footer>
+      </div>
+    </div>
+
+    <div class="dialog-overlay" id="calendar-day-dialog" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="cal-day-title">
+      <div class="dialog dialog-lg">
+        <header class="dialog-header" id="cal-day-title"></header>
+        <div class="dialog-body dialog-body-scroll">
+          <div id="cal-day-events"></div>
+          <div class="cal-event-form">
+            <label id="cal-form-text-label" for="cal-form-text"></label>
+            <input type="text" id="cal-form-text" maxlength="200" />
+            <div class="cal-form-row">
+              <div class="cal-form-field">
+                <label id="cal-form-year-label" for="cal-form-year"></label>
+                <input type="number" id="cal-form-year" min="1970" max="9999" step="1" />
+                <span class="cal-field-hint" id="cal-form-year-hint" style="display:none;"></span>
+              </div>
+              <div class="cal-form-field">
+                <label id="cal-form-repeat-label" for="cal-form-repeat"></label>
+                <select id="cal-form-repeat"></select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <footer class="dialog-footer">
+          <button type="button" class="btn btn-ghost" id="cal-day-close"></button>
+          <button type="button" class="btn btn-primary" id="cal-day-save"></button>
+        </footer>
+      </div>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

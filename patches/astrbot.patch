@@ -1,0 +1,300 @@
+--- a/astrbot/core/agent/runners/tool_loop_agent_runner.py
++++ b/astrbot/core/agent/runners/tool_loop_agent_runner.py
+@@ -1,5 +1,6 @@
+ import asyncio
+ import copy
++import json
+ import sys
+ import time
+ import traceback
+@@ -316,6 +317,11 @@
+             # MODIFIE the req.func_tool to use light tool schemas
+             self.req.func_tool = light_set
+ 
++        if tool_schema_mode == "deferred" and self.req.func_tool:
++            from astrbot.core.agent.tool_discovery import defer_tool_schemas
++
++            self.req.func_tool = defer_tool_schemas(self.req.func_tool)
++
+         # append existing messages in the run context
+         messages = bind_checkpoint_messages(request.contexts or [])
+         if (
+@@ -523,6 +529,48 @@
+             "abort_signal": self._abort_signal,
+             "request_max_retries": self.request_max_retries,
+         }
++        counter = self._tool_result_token_counter
++        tool_set = payload["func_tool"]
++        schemas = (
++            [
++                {
++                    "name": tool.name,
++                    "description": tool.description,
++                    "parameters": tool.parameters,
++                }
++                for tool in tool_set.tools
++                if tool.active
++            ]
++            if tool_set
++            else []
++        )
++        schema_tokens = (
++            counter.count_tokens(
++                [
++                    Message(
++                        role="system", content=json.dumps(schemas, ensure_ascii=False)
++                    )
++                ]
++            )
++            if schemas
++            else 0
++        )
++        roles = {}
++        for message in self.run_context.messages:
++            roles[message.role] = roles.get(message.role, 0) + counter.count_tokens(
++                [message]
++            )
++        logger.info(
++            "Context estimate (not billed usage): %s",
++            json.dumps(
++                {
++                    "mode": self.tool_schema_mode,
++                    "message_tokens_by_role": roles,
++                    "tool_schema_tokens": schema_tokens,
++                    "tool_count": len(schemas),
++                }
++            ),
++        )
+         if include_model:
+             # For primary provider we keep explicit model selection if provided.
+             payload["model"] = self.req.model
+@@ -1322,7 +1370,15 @@
+                                     mime_type=content_item.mimeType or "image/png",
+                                 )
+                                 result_parts.append(
+-                                    f"Image returned and cached at path='{cached_img.file_path}'. "
++                                    "Private phone observation. Follow the phone tool's delivery receipt: if sent=true the image has already been delivered; never resend it via send_message_to_user. Otherwise use the verified phone delivery workflow."
++                                    if func_tool_name
++                                    in {
++                                        "whale_phone_capture_screen",
++                                        "whale_phone_show_photo",
++                                        "whale_phone_take_photo",
++                                        "whale_device_execute_plan",
++                                    }
++                                    else f"Image returned and cached at path='{cached_img.file_path}'. "
+                                     f"Review the image below. Use send_message_to_user to send it to the user if satisfied, "
+                                     f"with type='image' and path='{cached_img.file_path}'."
+                                 )
+--- /dev/null
++++ b/astrbot/core/agent/tool_discovery.py
+@@ -0,0 +1,110 @@
++"""Request-scoped discovery over an already authorized tool set."""
++
++import json
++import re
++from dataclasses import field
++from typing import Any
++
++from pydantic.dataclasses import dataclass
++
++from .tool import FunctionTool, ToolSet
++
++
++@dataclass
++class DiscoverTools(FunctionTool):
++    catalog: Any = field(default_factory=dict, repr=False)
++    visible: Any = field(default=None, repr=False)
++    name: str = "astrbot_discover_tools"
++    description: str = (
++        "Find and load tools before using capabilities that are not currently listed. "
++        "Search by task, service, or exact tool name; full schemas become available "
++        "on the next step. Search does not execute the discovered tools."
++    )
++    parameters: dict = field(
++        default_factory=lambda: {
++            "type": "object",
++            "properties": {
++                "query": {
++                    "type": "string",
++                    "description": "Task, service or tool name.",
++                },
++                "names": {"type": "array", "items": {"type": "string"}, "maxItems": 4},
++            },
++            "required": ["query"],
++        }
++    )
++
++    async def call(self, context, query: str, names: list[str] | None = None):
++        """Load matching tools from this request's permission-filtered catalog.
++
++        Args:
++            context: Execution context, unused for permission expansion.
++            query: Free text or exact tool name.
++            names: Optional exact tool names, at most four.
++
++        Returns:
++            Names loaded for the next step, or a bounded discovery hint.
++        """
++        if not isinstance(query, str) or len(query) > 1000:
++            return json.dumps({"error": "invalid_query"})
++        if names is not None and (
++            not isinstance(names, list)
++            or len(names) > 4
++            or any(not isinstance(name, str) for name in names)
++        ):
++            return json.dumps({"error": "invalid_names"})
++        terms = set(re.findall(r"[a-z0-9]+|[\u4e00-\u9fff]{2}", query.lower()))
++        exact_names = set(names or []) or {
++            name for name in self.catalog if name.lower() in query.lower()
++        }
++        ranked = []
++        for name, tool in self.catalog.items():
++            if not tool.active or (exact_names and name not in exact_names):
++                continue
++            haystack = (name + " " + tool.description).lower()
++            score = sum(1 for term in terms if term in haystack)
++            if name in (names or []) or name.lower() in query.lower():
++                score += 1000
++            if score:
++                ranked.append((-score, name, tool))
++        ranked.sort(key=lambda item: (item[0], item[1]))
++        loaded = []
++        for _, name, tool in ranked[:4]:
++            self.visible.add_tool(tool)
++            loaded.append(name)
++        return json.dumps(
++            {
++                "loaded": loaded,
++                "instruction": "Use the newly available schemas on the next step; normal permissions still apply.",
++                "available_names": list(self.catalog)[:24] if not loaded else [],
++            },
++            ensure_ascii=False,
++        )
++
++
++def defer_tool_schemas(tools: ToolSet) -> ToolSet:
++    """Expose a small index while preserving authorized handlers for discovery.
++
++    Args:
++        tools: Tools after persona, plugin and permission filtering.
++
++    Returns:
++        A new request-local tool set; the shared registry is never changed.
++    """
++    catalog = {tool.name: tool for tool in tools.tools if tool.active}
++    visible = ToolSet()
++    discovery = DiscoverTools(catalog=catalog, visible=visible)
++    # A bounded metadata index helps small catalogs and multilingual requests.
++    index = "\n".join(
++        f"{name}: {tool.description.splitlines()[0][:100]}"
++        for name, tool in list(catalog.items())[:24]
++        if tool.description
++    )
++    if index:
++        discovery.description += "\nAvailable capabilities (partial index):\n" + index
++    visible.add_tool(discovery)
++    # The existing overflow mechanism must retain its read capability.
++    reader = catalog.get("astrbot_file_read_tool")
++    if reader is not None:
++        visible.add_tool(reader)
++    return visible
+--- a/astrbot/core/astr_main_agent/builder.py
++++ b/astrbot/core/astr_main_agent/builder.py
+@@ -136,7 +136,7 @@
+     if req.func_tool and req.func_tool.tools:
+         tool_prompt = (
+             TOOL_CALL_PROMPT
+-            if config.tool_schema_mode == "full"
++            if config.tool_schema_mode != "skills_like"
+             else TOOL_CALL_PROMPT_SKILLS_LIKE_MODE
+         )
+         req.system_prompt += f"\n{tool_prompt}\n"
+--- a/astrbot/core/astr_main_agent/config.py
++++ b/astrbot/core/astr_main_agent/config.py
+@@ -94,7 +94,7 @@
+         misc = runner_config.get("misc", {})
+         file_extract = settings.get("file_extract", {})
+         tool_schema_mode = misc.get("tool_schema_mode", "full")
+-        if tool_schema_mode not in ("skills_like", "full"):
++        if tool_schema_mode not in ("skills_like", "full", "deferred"):
+             logger.warning(
+                 "Unsupported tool_schema_mode: %s, fallback to full",
+                 tool_schema_mode,
+--- a/astrbot/core/astr_main_agent/persona.py
++++ b/astrbot/core/astr_main_agent/persona.py
+@@ -64,6 +64,19 @@
+         platform_name=event.get_platform_name(),
+         provider_settings=cfg,
+     )
++
++    # A trusted plugin may select a persona for one speaker in a shared chat.
++    # Resolve it before composing examples, skills and tools, without mutating
++    # the conversation or its persisted profile for other concurrent speakers.
++    request_persona_id = event.get_extra("_request_persona_id")
++    if isinstance(request_persona_id, str) and request_persona_id:
++        selected = plugin_context.persona_manager.get_persona_v3_by_id(
++            request_persona_id
++        )
++        if selected is None:
++            raise ValueError(f"Request persona does not exist: {request_persona_id}")
++        persona_id, persona = request_persona_id, selected
++        use_webchat_special_default = False
+ 
+     event.set_extra("_trace_persona_id", persona_id)
+ 
+--- a/astrbot/core/config/default.py
++++ b/astrbot/core/config/default.py
+@@ -4321,9 +4321,13 @@
+                     "agent_runner.config.misc.tool_schema_mode": {
+                         "description": "工具调用模式",
+                         "type": "string",
+-                        "options": ["skills_like", "full"],
+-                        "labels": ["Skills-like（两阶段）", "Full（完整参数）"],
+-                        "hint": "skills-like 先下发工具名称与描述，再下发参数；full 一次性下发完整参数。",
++                        "options": ["skills_like", "full", "deferred"],
++                        "labels": [
++                            "Skills-like（两阶段）",
++                            "Full（完整参数）",
++                            "按需发现工具",
++                        ],
++                        "hint": "skills-like 先下发工具名称与描述，再下发参数；full 一次性下发完整参数；deferred 先提供能力索引，通过搜索按需加载工具，已加载工具在本次任务中保留。",
+                         "condition": {
+                             "agent_runner.runner_type": "local",
+                         },
+--- a/astrbot/core/pipeline/process_stage/follow_up.py
++++ b/astrbot/core/pipeline/process_stage/follow_up.py
+@@ -6,6 +6,7 @@
+ from astrbot import logger
+ from astrbot.core.agent.runners.tool_loop_agent_runner import FollowUpTicket
+ from astrbot.core.astr_agent_run_util import AgentRunner
++from astrbot.core.message.components import File, Image, Record, Reply, Video
+ from astrbot.core.platform.astr_message_event import AstrMessageEvent
+ from astrbot.core.utils.active_event_registry import active_event_registry
+ 
+@@ -174,6 +175,14 @@
+ 
+ 
+ def try_capture_follow_up(event: AstrMessageEvent) -> FollowUpCapture | None:
++    # Follow-up tickets carry text only. Let attachments take the normal
++    # serialized request path, which resolves their bytes and preserves media
++    # provenance instead of consuming them as a misleading "[image]" notice.
++    if any(
++        isinstance(part, (Image, Record, Video, File, Reply))
++        for part in getattr(getattr(event, "message_obj", None), "message", [])
++    ):
++        return None
+     sender_id = event.get_sender_id()
+     if not sender_id:
+         return None
+--- a/astrbot/dashboard/plugin_page_bridge.js
++++ b/astrbot/dashboard/plugin_page_bridge.js
+@@ -240,6 +240,9 @@
+     __setInitialContext(nextContext) {
+       applyContext(nextContext);
+     },
++    navigate(path) {
++      return makeRequest("navigation:go", { path });
++    },
+     apiGet(endpoint, params) {
+       return makeRequest("api:get", { endpoint, params });
+     },

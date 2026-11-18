@@ -1,0 +1,12 @@
+{
+  "protocol_version": 1,
+  "request_id": "fixture-request-001",
+  "device_id": "device-001",
+  "command": "device.app.launch",
+  "deadline_ms": 30000,
+  "idempotency_key": "fixture-owner-001:0",
+  "counter": 1,
+  "issued_at_ms": 0,
+  "payload": { "package_name": "com.android.settings" },
+  "signature": "fixture-signature-required-in-paired-runtime"
+}

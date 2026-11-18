@@ -1,0 +1,183 @@
+{
+  "fixture": "m06-command-runtime",
+  "source_doc": "docs/modules/M06-command-runtime-development.md",
+  "cases": [
+    {
+      "id": "unknown_command_rejected",
+      "envelope": {
+        "protocol_version": 1,
+        "request_id": "req-m06-001",
+        "device_id": "device-b-01",
+        "command": "device.shell.exec",
+        "deadline_ms": 30000,
+        "idempotency_key": "m06-001",
+        "counter": 1,
+        "issued_at_ms": 0,
+        "payload": {},
+        "signature": "test-signature"
+      },
+      "expected": {
+        "status": "denied",
+        "error_code": "UNKNOWN_COMMAND",
+        "router_invoked": false
+      }
+    },
+    {
+      "id": "undeclared_payload_field_rejected",
+      "envelope": {
+        "protocol_version": 1,
+        "request_id": "req-m06-002",
+        "device_id": "device-b-01",
+        "command": "device.ui.tap",
+        "deadline_ms": 30000,
+        "idempotency_key": "m06-002",
+        "counter": 2,
+        "issued_at_ms": 0,
+        "payload": {
+          "snapshot_id": "snap-1",
+          "target_id": "node-1",
+          "selector_hash": "abcdefabcdefabcdefabcdef",
+          "expected_package": "com.android.settings",
+          "click_x": 540
+        },
+        "signature": "test-signature"
+      },
+      "expected": {
+        "status": "denied",
+        "error_code": "INVALID_PAYLOAD",
+        "message_contains": "not declared",
+        "note": "裸坐标不是声明字段；模型不能靠坐标绕过语义目标"
+      }
+    },
+    {
+      "id": "long_press_duration_out_of_range",
+      "envelope": {
+        "protocol_version": 1,
+        "request_id": "req-m06-003",
+        "device_id": "device-b-01",
+        "command": "device.ui.long_press",
+        "deadline_ms": 30000,
+        "idempotency_key": "m06-003",
+        "counter": 3,
+        "issued_at_ms": 0,
+        "payload": {
+          "snapshot_id": "snap-1",
+          "target_id": "node-1",
+          "selector_hash": "abcdefabcdefabcdefabcdef",
+          "expected_package": "com.android.settings",
+          "duration_ms": 30001
+        },
+        "signature": "test-signature"
+      },
+      "expected": {
+        "status": "denied",
+        "error_code": "INVALID_PAYLOAD"
+      }
+    },
+    {
+      "id": "package_not_allowlisted",
+      "envelope": {
+        "protocol_version": 1,
+        "request_id": "req-m06-004",
+        "device_id": "device-b-01",
+        "command": "device.app.launch",
+        "deadline_ms": 30000,
+        "idempotency_key": "m06-004",
+        "counter": 4,
+        "issued_at_ms": 0,
+        "payload": { "package_name": "com.unknown.banking" },
+        "signature": "test-signature"
+      },
+      "device_state": {
+        "allowlist": ["com.android.settings"],
+        "blocked_packages": []
+      },
+      "expected": {
+        "status": "denied",
+        "error_code": "PACKAGE_NOT_ALLOWED"
+      }
+    },
+    {
+      "id": "media_not_wired_is_fixed_failure",
+      "envelope": {
+        "protocol_version": 1,
+        "request_id": "req-m06-005",
+        "device_id": "device-b-01",
+        "command": "device.camera.capture",
+        "deadline_ms": 30000,
+        "idempotency_key": "m06-005",
+        "counter": 5,
+        "issued_at_ms": 0,
+        "payload": { "lens": "back", "quality": "standard" },
+        "signature": "test-signature"
+      },
+      "expected": {
+        "status": "denied",
+        "error_code": "NOT_WIRED",
+        "note": "M08 未接入前不得伪装成功或返回 ok"
+      }
+    },
+    {
+      "id": "concurrent_command_queued",
+      "envelope": {
+        "protocol_version": 1,
+        "request_id": "req-m06-006",
+        "device_id": "device-b-01",
+        "command": "device.ui.home",
+        "deadline_ms": 30000,
+        "idempotency_key": "m06-006",
+        "counter": 6,
+        "issued_at_ms": 0,
+        "payload": {},
+        "signature": "test-signature"
+      },
+      "device_state": { "active_task": true },
+      "expected": {
+        "status": "queued",
+        "error_code": "",
+        "note": "同一设备只允许一个 active task，并发不得同时点击"
+      }
+    },
+    {
+      "id": "unsupported_protocol_version",
+      "envelope": {
+        "protocol_version": 2,
+        "request_id": "req-m06-007",
+        "device_id": "device-b-01",
+        "command": "device.device_status",
+        "deadline_ms": 30000,
+        "idempotency_key": "m06-007",
+        "counter": 7,
+        "issued_at_ms": 0,
+        "payload": {},
+        "signature": "test-signature"
+      },
+      "expected": {
+        "status": "denied",
+        "error_code": "UNSUPPORTED_PROTOCOL"
+      }
+    },
+    {
+      "id": "valid_launch_allowed",
+      "envelope": {
+        "protocol_version": 1,
+        "request_id": "req-m06-008",
+        "device_id": "device-b-01",
+        "command": "device.app.launch",
+        "deadline_ms": 30000,
+        "idempotency_key": "m06-008",
+        "counter": 8,
+        "issued_at_ms": 0,
+        "payload": { "package_name": "com.android.settings" },
+        "signature": "test-signature"
+      },
+      "device_state": { "allowlist": ["com.android.settings"], "blocked_packages": [] },
+      "expected": {
+        "status": "ok",
+        "error_code": "",
+        "evidence_package": "com.android.settings"
+      }
+    }
+  ],
+  "forbidden_error_codes_note": "错误码必须来自 CommandErrors.ALL；本夹具中出现的码全部已在 docs/modules/M06-command-runtime-development.md 固定集合登记。"
+}

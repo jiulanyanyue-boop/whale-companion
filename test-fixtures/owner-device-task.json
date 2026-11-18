@@ -1,0 +1,12 @@
+{
+  "message_id": "fixture-owner-001",
+  "user_id": "A",
+  "message_type": "private",
+  "text": "打开设置",
+  "expected": {
+    "principal": "OWNER",
+    "mode": "DEVICE_TASK",
+    "command": "device.app.launch",
+    "payload": { "package_name": "com.android.settings" }
+  }
+}

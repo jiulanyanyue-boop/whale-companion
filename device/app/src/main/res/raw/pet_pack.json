@@ -1,0 +1,35 @@
+{
+  "pack_id": "whale_pet_local_v1",
+  "version": 1,
+  "source": "local_apk_resource_only",
+  "note": "首版素材完全由本 APK 资源提供；不引入网络动画 SDK、游戏引擎或跨端插件，也不复制外部项目宠物形象。本文件只描述窗口几何参数，不含任何位图素材。",
+  "window": {
+    "width_dp": 88,
+    "height_dp": 88,
+    "transparent_bounds": {
+      "left_px": 12,
+      "top_px": 12,
+      "right_px": 12,
+      "bottom_px": 12,
+      "note": "圆形底外的透明留白，触摸命中判定从这里向内收缩"
+    }
+  },
+  "tap_area": {
+    "min_width_dp": 48,
+    "min_height_dp": 48,
+    "note": "点击/长按可命中区域不得小于 48dp（无障碍最低触摸目标）"
+  },
+  "baseline": {
+    "text_baseline_ratio": 0.62,
+    "note": "状态文案基线相对窗口高度的比例，保证不同字号下文字仍然居中偏下"
+  },
+  "motion": {
+    "idle_tick_ms": 1000,
+    "note": "空闲动画低频刷新间隔；禁止持续高频定时器"
+  },
+  "layers": {
+    "preferred": "TYPE_ACCESSIBILITY_OVERLAY",
+    "fallback": "TYPE_APPLICATION_OVERLAY",
+    "note": "无障碍不可用时才退化到普通悬浮窗；两者都不可用则退化到应用内桌宠与通知"
+  }
+}

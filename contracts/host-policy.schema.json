@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whale-agent.local/contracts/host-policy.schema.json",
+  "title": "Signed host management policy, unavailable to model tools",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["command", "payload"],
+  "properties": {
+    "command": {"const": "host.policy.sync"},
+    "payload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["allowed_packages", "blocked_packages"],
+      "properties": {
+        "allowed_packages": {"$ref": "#/$defs/packages"},
+        "blocked_packages": {"$ref": "#/$defs/packages"}
+      }
+    }
+  },
+  "$defs": {"packages": {"type": "array", "maxItems": 500, "items": {"type": "string", "minLength": 3, "maxLength": 255, "pattern": "^[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+$"}}}
+}

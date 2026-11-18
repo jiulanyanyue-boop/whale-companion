@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    M08 媒体分享出口（FileProvider 路径白名单）。
+
+    只暴露受控 AssetStore 的目录，**不**暴露外部存储或任意用户路径：
+    - `media_assets/`  是 `AssetStore` 的 root（已登记素材，ID 已过正则与越界复查）；
+    - 文件名不带 `/`，因此不需要子目录通配，避免把整个相册暴露出去。
+
+    `android:path="."` 表示 media_assets 目录本身（不含子目录），
+    与 `AssetStore.fileOf()` 给出的「root 下直接一级文件」形状一致。
+-->
+<paths>
+    <files-path
+        name="media_assets"
+        path="media_assets/" />
+</paths>

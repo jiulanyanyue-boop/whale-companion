@@ -1,0 +1,97 @@
+<resources>
+    <string name="app_name">Whale 手机助手</string>
+    <string name="accessibility_description">Whale Agent v2 device execution service</string>
+
+    <!-- M11：首次配置向导与 OEM 权限引导 -->
+    <string name="m11_guide_title">权限与 OEM 引导</string>
+    <string name="m11_guide_subtitle">按固定顺序逐项检查；每一步都显示真实状态，失败时给出品牌与系统版本对应的手动路径。</string>
+    <string name="m11_guide_footer">本页只做只读检查与设置页跳转：不通过无障碍点击设置页自动授权，不合并「全部允许」，也不静默修改任何系统设置。</string>
+    <string name="m11_action_request">申请该项</string>
+    <string name="m11_action_open_settings">打开系统设置页</string>
+    <string name="m11_action_open_mode_page">打开模式设置页</string>
+    <string name="m11_mode_allowlist_note">模式切换与白名单只能在模式设置页里由你明确点击完成；本页不提供切换控件，也不会接管模式逻辑。</string>
+    <string name="m11_battery_optional_note">电池优化、自启动与后台运行均为可选引导：本应用不会静默修改系统设置，也不使用 Root、Shizuku 或 ADB。</string>
+    <string name="m11_blocked_title">需要手动操作</string>
+    <string name="m11_blocked_ack">知道了</string>
+
+    <!-- M01：设备端远程连接配置入口（写入 device_connection 的 wss_url / device_id） -->
+    <!--
+        文案原则：写给「第一次用、不懂技术」的人看。
+        - 不说 wss/Variable/端口 这类术语开场；先讲「这两格干什么、去哪拿」。
+        - 每格都给一个能直接照抄的示例。
+        - 常见卡点直接写在界面上，不让用户去翻文档。
+    -->
+    <string name="m01_conn_title">连接你的主机</string>
+
+    <string name="m01_conn_step1">这一步共两格要填：① 主机的「连接地址」　② 这台手机的「设备 ID」。</string>
+    <string name="m01_conn_step2">两样都在主机的配置里能找到（主机第一次运行时会打印出来）。填完点「保存并启动连接」。</string>
+
+    <string name="m01_conn_url_label">① 主机连接地址</string>
+    <string name="m01_conn_url_hint">例如 wss://192.168.1.100:8765</string>
+    <string name="m01_conn_url_help">去哪找：在主机（那台跑着主机的电脑）上，程序启动时会打印一行「device server listening: wss://…」，把 wss:// 后面那一整串抄过来即可。\n注意：主机地址里的 IP 要填主机的局域网 IP（形如 192.168.x.x），不能填 127.0.0.1，也不能填 0.0.0.0。</string>
+
+    <string name="m01_conn_device_id_label">② 这台手机的设备 ID</string>
+    <string name="m01_conn_device_id_hint">例如 device-b-01</string>
+    <string name="m01_conn_device_id_help">去哪找：在主机配置文件 host.json 里找 "device_id"，把它的值一字不差抄过来（包括大小写与横线）。两边必须完全一致，否则主机会拒绝连接。\n规则：3-80 位，只能用字母、数字和 . _ : -</string>
+
+    <string name="m01_conn_open_pairing">扫码配对（推荐，不用手打地址）</string>
+    <string name="m01_conn_save_and_start">保存并启动连接</string>
+    <string name="m01_conn_stop">停止连接服务</string>
+    <string name="m01_conn_refresh">刷新连接状态</string>
+
+    <string name="m01_conn_troubleshoot">连不上时先查这三点：\n1. 手机和主机连的是同一个 WiFi（同一局域网）\n2. 地址里的 IP 是主机的（不是手机的）\n3. 主机程序正在运行、没被防火墙拦住</string>
+
+    <string name="m01_conn_note">本区只写 device_connection 的 wss_url 与 device_id；连接状态按服务痕迹与运行与否如实显示，不显示假在线。</string>
+
+    <!-- M05：配对界面（扫码 / 粘贴 / 手输 + 六步流程 + 指纹确认） -->
+    <!--
+        文案原则：与 M01 一致——先讲「这一步要干什么」，再说术语。
+        每一步失败都直接写清原因与下一步怎么做，不用「配对失败」这种没信息量的句子。
+    -->
+    <string name="m05_pairing_title">扫一扫就配对</string>
+    <string name="m05_pairing_subtitle">用手机扫主机终端上显示的二维码，剩下的事自动完成。只有最后一步需要你看一眼指纹并点「一致」。</string>
+
+    <string name="m05_section_scan">① 扫码（摄像头）</string>
+    <string name="m05_section_paste">② 粘贴二维码内容</string>
+    <string name="m05_section_manual">③ 手动输入（主机地址 + 配对码）</string>
+    <string name="m05_section_steps">当前可进行的操作</string>
+
+    <string name="m05_scan_hint">把主机终端上的二维码对准摄像头即可。摄像头不能用时，才需要往下用②或③。</string>
+    <string name="m05_scan_need_permission">需要「相机」权限才能扫码；正在申请。拒绝也没关系——用②粘贴或③手动输入。</string>
+    <string name="m05_scan_permission_denied">相机权限没给：扫码用不了。请改用 ② 粘贴二维码内容，或 ③ 手动输入主机地址与配对码（两条都能完成配对）。</string>
+    <string name="m05_scan_unavailable">摄像头打不开（%s）：可能是没有摄像头、被其他应用占用或系统限制。请改用 ② 粘贴或 ③ 手动输入。</string>
+    <string name="m05_scan_running">正在扫码…对准主机屏幕上的二维码</string>
+    <string name="m05_scan_starting">正在打开摄像头…</string>
+    <string name="m05_scan_decode_rejected">扫到了内容，但配对码有问题：%s</string>
+    <string name="m05_action_start_camera">打开摄像头扫码（推荐）</string>
+
+    <string name="m05_paste_hint">把二维码里的整串内容粘贴到这里，形如 whale://pair?host=…&amp;token=…&amp;fp=…</string>
+    <string name="m05_action_submit_paste">用这段内容配对</string>
+
+    <string name="m05_manual_host_hint">主机地址，例如 wss://192.168.1.10:8765</string>
+    <string name="m05_manual_token_hint">主机给的一次性配对码（token）</string>
+    <string name="m05_action_submit_manual">用这两个框配对</string>
+
+    <string name="m05_action_generate_identity">继续配对</string>
+    <string name="m05_action_host_saved">提交设备身份</string>
+    <string name="m05_action_open_confirm">核对并确认指纹</string>
+    <string name="m05_action_finalize">完成配对</string>
+    <string name="m05_done_note">配对已完成：这台设备已经和主机绑定。一次性配对码已失效，同一张码不能再使用。</string>
+
+    <string name="m05_dialog_device_id_title">这台手机的设备 ID</string>
+    <string name="m05_dialog_device_id_message">3-80 位，只能用字母、数字与 . _ : - 。主机侧要保存同一个 ID，两边必须一致。</string>
+    <string name="m05_dialog_display_name_title">给这台设备起个名字</string>
+    <string name="m05_dialog_display_name_message">会显示在主机与确认页上，方便你认出是哪台设备。留空也可以。</string>
+
+    <string name="m05_confirm_title">核对两个指纹</string>
+    <string name="m05_confirm_body">请把下面两个指纹与主机屏幕上显示的对应值逐字比对。指纹是身份的唯一凭据：不一致就意味着对方可能不是你信任的那台主机。</string>
+    <string name="m05_confirm_fingerprint_hint">主机指纹（64 位小写十六进制，照主机屏幕抄）</string>
+    <string name="m05_confirm_match">一致，确认启用</string>
+    <string name="m05_confirm_mismatch">不一致，取消配对</string>
+    <string name="m05_confirm_cancel">先不确认</string>
+
+    <string name="m05_save_identity_failed">身份保存失败（%s）：配对没有落盘，请重试。</string>
+    <string name="m05_save_connection_failed">连接配置保存失败（%s）：身份已保存，但连接设置没写进去。</string>
+
+    <string name="m05_pairing_footer">本页只在配对里读写身份与连接配置：私钥始终留在 Android Keystore，绝不导出；主机只拿到公钥与指纹；主机指纹变化时绝不自动接受，必须人工重新配对。</string>
+</resources>

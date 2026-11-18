@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whale-agent.local/contracts/device-mode.schema.json",
+  "title": "Whale Agent Mode",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mode"],
+  "properties": {
+    "mode": { "enum": ["REMOTE_B", "LOCAL_PET"] }
+  }
+}

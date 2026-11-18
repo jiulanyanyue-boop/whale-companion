@@ -1,0 +1,139 @@
+{
+  "owner_user_id": {
+    "type": "string",
+    "description": "QQ主人号，与可信私聊发送者ID精确匹配。",
+    "default": ""
+  },
+  "device_id": {
+    "type": "string",
+    "description": "已配对设备ID。",
+    "default": ""
+  },
+  "platform_id": {
+    "type": "string",
+    "description": "AstrBot已配置的QQ平台ID。",
+    "default": "whale_qq"
+  },
+  "owner_persona_id": {
+    "type": "string",
+    "description": "主人身份使用的官方Persona ID。",
+    "default": "whale_owner"
+  },
+  "group_persona_id": {
+    "type": "string",
+    "description": "群友身份使用的官方Persona ID。",
+    "default": "whale_group"
+  },
+  "rpc_url": {
+    "type": "string",
+    "description": "本机设备服务地址。",
+    "default": "http://127.0.0.1:8767/v1/device/execute-plan"
+  },
+  "token_env": {
+    "type": "string",
+    "description": "本机RPC凭据环境变量名。",
+    "default": "WHALE_DEVICE_RPC_TOKEN"
+  },
+  "deployment_mode": {
+    "type": "string",
+    "description": "运行方式",
+    "options": [
+      "plugin",
+      "desktop"
+    ],
+    "default": "plugin"
+  },
+  "desktop_config_path": {
+    "type": "string",
+    "description": "桌面版配置文件（集成版自动填写）",
+    "default": ""
+  },
+  "device_listen_host": {
+    "type": "string",
+    "description": "手机服务监听地址",
+    "default": "0.0.0.0"
+  },
+  "device_listen_port": {
+    "type": "int",
+    "description": "手机连接端口",
+    "default": 8765
+  },
+  "pairing_port": {
+    "type": "int",
+    "description": "手机配对端口",
+    "default": 8766
+  },
+  "autonomy_enabled": {
+    "type": "bool",
+    "description": "允许她空闲时自己玩手机、主动找主人聊天和发表情（仅主人私聊）",
+    "default": false
+  },
+  "autonomy_timezone": {
+    "type": "string",
+    "description": "固定按北京时间计算，不跟随本机时区",
+    "default": "Asia/Shanghai",
+    "options": [
+      "Asia/Shanghai"
+    ]
+  },
+  "autonomy_start_hour": {
+    "type": "int",
+    "description": "每天可以主动联系主人的开始小时（北京时间，0至23）",
+    "default": 8
+  },
+  "autonomy_end_hour": {
+    "type": "int",
+    "description": "每天可以主动联系主人的结束小时（北京时间，1至24）",
+    "default": 23
+  },
+  "autonomy_idle_minutes": {
+    "type": "int",
+    "description": "主人多久没说话后，她可以自己活动（分钟，至少5）",
+    "default": 10
+  },
+  "autonomy_contact_minutes": {
+    "type": "int",
+    "description": "两次主动找主人聊天至少间隔多少分钟（至少15）",
+    "default": 45
+  },
+  "autonomy_daily_contacts": {
+    "type": "int",
+    "description": "一天最多主动找主人聊天的次数（0至12）",
+    "default": 6
+  },
+  "autonomy_browse_during_quiet": {
+    "type": "bool",
+    "description": "安静时段允许自己浏览手机，但不主动发消息",
+    "default": true
+  },
+  "voice_calls_enabled": {
+    "type": "bool",
+    "description": "启用主人QQ来电语音交流（需要本机Linux通话桥；仅真实接通后收听和回复，目前不支持主动拨号）",
+    "default": false
+  },
+  "voice_call_token_file": {
+    "type": "string",
+    "description": "通话桥本机凭据文件，安装工具自动填写。请勿填写密钥原文。",
+    "default": ""
+  },
+  "voice_call_gateway": {
+    "type": "string",
+    "description": "本机通话音频服务地址，由安装工具维护。",
+    "default": "http://127.0.0.1:6112"
+  },
+  "voice_assets_dir": {
+    "type": "string",
+    "description": "录音素材目录，包含 catalog.json 与音频文件。留空使用随插件提供的三段中文测试录音；替换录音时请同步填写实际说出的文字。",
+    "default": ""
+  },
+  "voice_local_model": {
+    "type": "string",
+    "description": "本地语音识别模型，可填写已下载的模型目录或 base、small。普通聊天时只读取本地文件，不自动下载；先用 setup-voice.py 准备模型。QQ语音优先用QQ转写，其次使用已配置的识别服务，最后使用此模型。",
+    "default": "base"
+  },
+  "device_public_url": {
+    "type": "string",
+    "description": "手机公网入口：wss://host.example.com:443/whale/device；443端口使用同路径下的配对接口，其他端口使用下一端口",
+    "default": ""
+  }
+}
