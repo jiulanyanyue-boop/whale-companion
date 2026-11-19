@@ -18,11 +18,13 @@ class FakeWindow:
         self.url = url
         self.hidden = False
         self.loaded_urls = []
+        self.loaded_html = []
         self.scripts = []
         self.events = FakeEvents()
 
     def get_current_url(self): return self.url
     def load_url(self, url): self.url = url; self.loaded_urls.append(url)
+    def load_html(self, content): self.loaded_html.append(content)
     def evaluate_js(self, script): self.scripts.append(script)
     def run_js(self, script): self.scripts.append(script)
     def hide(self): self.hidden = True
@@ -97,3 +99,45 @@ def test_retry_does_not_start_duplicate_runtime_workers():
         if window.loaded_urls: break
         time.sleep(.01)
     assert window.loaded_urls == [ew.DASHBOARD_URL]
+
+
+def test_startup_failure_is_logged_without_secret_and_shows_retry(tmp_path):
+    """异常必须留下安全的调用栈并展示重试，不能把异常中的凭据写进日志。"""
+    class BrokenRuntime(Runtime):
+        def start(self):
+            raise ValueError("private-model-key-do-not-log")
+    controller = ew.DesktopWindow(BrokenRuntime(), tmp_path / "dist-exe/profile", SimpleNamespace())
+    controller.window = FakeWindow()
+    controller._launch()
+    assert controller._busy.acquire(timeout=2)
+    controller._busy.release()
+    log = tmp_path / "runtime/logs/desktop-shell.log"
+    assert log.is_file()
+    text = log.read_text(encoding="utf-8")
+    assert "ValueError" in text and "worker" in text
+    assert "private-model-key-do-not-log" not in text
+    assert len(controller.window.loaded_html) == 1
+    assert "desktop-shell.log" in controller.window.loaded_html[0]
+    assert "private-model-key-do-not-log" not in controller.window.loaded_html[0]
+    assert "pywebview.api.retry()" in controller.window.loaded_html[0]
+
+
+def test_background_waits_for_initial_page_before_starting_services(tmp_path):
+    """初始 WebView2 页面加载完成前不能导航，否则快速失败页会被初始 HTML 覆盖。"""
+    runtime = Runtime()
+    controller = ew.DesktopWindow(runtime, tmp_path / "dist-exe/profile", SimpleNamespace())
+    controller.window = FakeWindow()
+    thread = threading.Thread(target=controller._background)
+    thread.start()
+    try:
+        time.sleep(.05)
+        assert runtime.starts == 0
+        controller._loaded()
+        for _ in range(100):
+            if controller.window.loaded_urls:
+                break
+            time.sleep(.01)
+        assert controller.window.loaded_urls == [ew.DASHBOARD_URL]
+    finally:
+        controller._exit.set()
+        thread.join(2)

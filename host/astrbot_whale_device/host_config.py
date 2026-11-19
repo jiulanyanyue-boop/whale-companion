@@ -290,7 +290,7 @@ class HostConfig:
 
     @classmethod
     def load(cls, path: str | Path, *, environ: Mapping[str, str] | None = None) -> HostConfig:
-        """从 JSON 文件加载。
+        """从 JSON 文件加载，兼容 Windows 工具写入的 UTF-8 BOM，且不改写文件。
 
         `environ` 只用于允许调用方注入，**不在这里读取任何密钥**——
         密钥读取发生在 [signing_secret] / [model_api_key]，且返回值不进日志。
@@ -300,7 +300,7 @@ class HostConfig:
         if not file.is_file():
             raise ConfigError(f"host config not found: {file}")
         try:
-            data = json.loads(file.read_text(encoding="utf-8"))
+            data = json.loads(file.read_text(encoding="utf-8-sig"))
         except json.JSONDecodeError as exc:
             raise ConfigError(f"host config is not valid JSON: {exc}") from exc
         return cls.from_mapping(data)

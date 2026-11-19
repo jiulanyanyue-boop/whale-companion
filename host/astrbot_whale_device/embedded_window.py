@@ -4,6 +4,9 @@ import html
 import json
 import queue
 import threading
+import time
+import traceback
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 from .integrated_runtime import DASHBOARD_URL, IntegratedRuntime
@@ -23,27 +26,58 @@ def startup_html(message='正在启动 AstrBot 和手机服务…', *, error=Fal
     </style><main><h1>{heading}</h1><p>{html.escape(message)}</p>{retry}</main></html>'''
 
 class DesktopWindow:
+    """管理桌面窗口、服务启动与托盘；启动失败时保留不含凭据的诊断信息。"""
     def __init__(self,runtime,storage_path,webview_module,*,tray_factory=None):
         self.runtime=runtime;self.storage_path=Path(storage_path).resolve();self.webview=webview_module
         self.tray_factory=tray_factory;self.window=None;self.tray=None
         self._exit=threading.Event();self._busy=threading.Lock();self._authenticated=False
+        self._page_ready=threading.Event()
+        self._log_path=self.storage_path.parent.parent/'runtime/logs/desktop-shell.log'
+
+    def _record_failure(self, stage, exc):
+        """只记录异常类型和栈位置，不记录消息、源码行或局部变量中的密钥。"""
+        try:
+            self._log_path.parent.mkdir(parents=True,exist_ok=True)
+            with self._log_path.open('a',encoding='utf-8') as output:
+                output.write(f'{datetime.now(timezone.utc).isoformat()} {stage}\n')
+                for _ in range(8):
+                    output.write(type(exc).__name__+'\n')
+                    for frame in traceback.extract_tb(exc.__traceback__):
+                        output.write(f'  {frame.filename}:{frame.lineno} in {frame.name}\n')
+                    exc=exc.__cause__ or (None if exc.__suppress_context__ else exc.__context__)
+                    if exc is None:break
+        except OSError:
+            pass
+
+    def _show_failure(self, exc):
+        """展示安全的故障提示；即使页面渲染失败，也保留其独立诊断栈。"""
+        self._record_failure('desktop startup failed',exc)
+        if self._exit.is_set():return
+        try:
+            self.window.load_html(startup_html(
+                '请检查 host.json 配置及安装目录是否完整。诊断日志：runtime/logs/desktop-shell.log；后端日志：runtime/logs/desktop-launcher.log。',error=True))
+        except Exception as render_error:
+            self._record_failure('startup error page failed',render_error)
 
     def retry(self):
         if self.window and self.window.get_current_url() not in (None,'','about:blank'):return False
         self._launch();return True
 
     def _launch(self):
+        """串行启动服务，捕获快速失败，避免工作线程静默退出。"""
         if self._exit.is_set() or not self._busy.acquire(blocking=False):return
         def worker():
             try:
                 url=self.runtime.start()
                 if not self._exit.is_set():self.window.load_url(url)
-            except Exception:
-                if not self._exit.is_set():self.window.load_html(startup_html('请确认安装目录完整，并检查 runtime/logs 中的运行日志。',error=True))
+            except Exception as exc:
+                self._show_failure(exc)
             finally:self._busy.release()
         threading.Thread(target=worker,daemon=True,name='whale-desktop-start').start()
 
     def _loaded(self):
+        """标记首屏已完成初始化，仅向受信任的本机页面注入登录令牌。"""
+        self._page_ready.set()
         if self._authenticated or self._exit.is_set() or not is_dashboard_url(self.window.get_current_url()):return
         try:
             token=self.runtime.dashboard_token()
@@ -58,6 +92,14 @@ class DesktopWindow:
         self._exit.set();return True
 
     def _background(self):
+        """等待 WebView2 首屏就绪再启动，防止初始化过程覆盖成功导航或报错页。"""
+        deadline=time.monotonic()+30
+        while not self._page_ready.wait(.1):
+            if self._exit.is_set():return
+            if time.monotonic()>=deadline:
+                self._show_failure(TimeoutError('WebView2 initial page timeout'))
+                return
+        if self._exit.is_set():return
         if self.tray_factory:
             try:self.tray=self.tray_factory();self.tray.start()
             except Exception:

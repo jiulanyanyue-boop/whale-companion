@@ -1,5 +1,26 @@
 # 发布验证
 
+## 2026-11-19 桌面启动修复
+
+本节是本次实际结果，下方历史全量验证数字不代表本次重新执行。
+
+| 项目 | 本次结果 |
+| --- | --- |
+| 根因复现 | 原安装 `host.json` 含 UTF-8 BOM，旧 `HostConfig.load` 抛出 JSONDecodeError/ConfigError；源码运行时可稳定复现，非模型 key 缺失或托盘死锁 |
+| 测试先行 | 新增用例先观察到 BOM 读取、异常日志缺失、首屏未就绪便启动三项预期失败，再实现修复 |
+| 定向回归 | `test_embedded_window.py`、`test_integrated_runtime.py`、`test_quickstart.py`、`test_gui_secrets.py`、`test_desktop_device_transport.py`、`test_launcher.py` 共 80 项通过 |
+| 原配置验证 | 修复后真实源码运行时启动成功；保留原 BOM 文件，不通过删 BOM 或覆盖配置绕过问题 |
+| EXE 构建 | 本机 Python 3.12.10、PyInstaller 6.22.3 构建成功；仅替换本机 dist-exe 的 EXE，旧 EXE 备份留在被忽略的 `.verify/` |
+| 错误场景 | 新 EXE 放入中文及空格路径，使用不完整 JSON；实际窗口显示故障页、日志路径和重试按钮，点击重试留下第二次独立诊断记录，不覆盖为初始加载页 |
+| 冷启动 | 关闭先前诊断启动的后端后，由新 EXE 启动设备服务和 AstrBot；实际桌面进入已认证的 AstrBot 管理页，侧栏出现 STS2 联机，6185/8767 均仅监听回环地址 |
+| 清理 | 关闭隔离错误场景 EXE 及其子进程、先前独立诊断后端；保留用户要求启动的正式桌面/AstrBot 与 Steam |
+
+未在第二台物理电脑或全新 Windows 虚拟机执行安装，没有验证缺少 WebView2、受限账户、不同 Python 安装位置或下载中断的实机行为。中文/空格路径的完整后端冷启动未验证，仅验证了配置读取与 EXE 错误展示。没有重新执行历史全量主机/Android 测试，也没有进行 QQ 真实对话、STS2 游戏或远程多人验收。
+
+新电脑仍需 Git、Python 3.12 + Launcher、WebView2 Runtime、可写安装目录、可访问上游依赖源，且不能直接搬运旧虚拟环境及绝对路径配置。安装器创建的 JSON 是无 BOM UTF-8；本次兼容修复针对之后被 Windows 工具重写的 UTF-8 BOM 文件，不意味着支持任意 UTF-16/ANSI 配置。宿主构建环境与 AstrBot 环境独立，cryptography 版本范围不同本身不构成单一环境冲突；其他依赖未完全锁定，不保证未来任意版本组合都已验证。
+
+## 历史打包验证
+
 验证对象：Windows 源码整合包和 Android 客户端。以下是本次打包环境的结果。
 
 | 项目 | 结果 |

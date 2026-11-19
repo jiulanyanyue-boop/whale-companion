@@ -100,6 +100,17 @@ def test_default_template_loads_through_host_config():
     assert all(not str(key).startswith("_") for key in DEFAULT_TEMPLATE)
 
 
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig"])
+def test_host_config_accepts_windows_utf8_bom_without_rewriting(tmp_path, encoding):
+    """Windows 编辑器或 PowerShell 写入 BOM 后仍能读取，且不改动原配置。"""
+    path = tmp_path / "中文 空格" / "host.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps(_valid_config_mapping()), encoding=encoding)
+    original = path.read_bytes()
+    assert HostConfig.load(path).owner_user_id == DEFAULT_TEMPLATE["owner_user_id"]
+    assert path.read_bytes() == original
+
+
 def test_default_template_is_a_copy_not_the_constant():
     """`default_template()` 必须给深拷贝，调用方改它不能污染后续生成。"""
     first = default_template()
