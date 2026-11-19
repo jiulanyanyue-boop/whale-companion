@@ -21,6 +21,8 @@ DSH_KEY_ENV = "WHALE_DSH_MODEL_KEY"
 OFM_PROVIDER_ID = "whale_ofm"
 OFM_CHANNEL = "ofm-local"
 LEGACY_OFM_CHANNEL = "our-free-model"
+DSH_RATE = r"[×xX]\s*\d+(?:\.\d+)?"
+DSH_PRICE_SUFFIX = re.compile(rf"(?:^|\s)({DSH_RATE}(?:\s*→\s*{DSH_RATE})?|免费)$")
 CHANNEL_NAMES = {
     "trae": "Trae 积分",
     "qoder": "Qoder",
@@ -153,20 +155,21 @@ class ModelChannels:
                     model = item.get("id", "")
                     if not isinstance(model, str) or "/" not in model:
                         continue
-                    channel, name = model.split("/", 1)
+                    channel, alias = model.split("/", 1)
+                    # 用户看到 DSH 原始标题；请求仍使用网关返回的完整模型 ID。
+                    label = item.get("name")
+                    label = label.strip() if isinstance(label, str) else ""
+                    price = DSH_PRICE_SUFFIX.search(label)
+                    pricing_label = price.group(1) if price else ""
                     choices.append(
                         {
                             "channel": channel,
                             "channel_name": CHANNEL_NAMES.get(channel, channel),
                             "model": model,
-                            "name": name,
-                            "multiplier": float(match.group(1))
-                            if (
-                                match := re.search(
-                                    r"(?:×|[xX])\s*(\d+(?:\.\d+)?)",
-                                    str(item.get("name", "")),
-                                )
-                            )
+                            "name": label or alias,
+                            "pricing_label": pricing_label,
+                            "multiplier": float(pricing_label[1:].strip())
+                            if re.fullmatch(DSH_RATE, pricing_label)
                             else None,
                             "modalities": [
                                 "text",

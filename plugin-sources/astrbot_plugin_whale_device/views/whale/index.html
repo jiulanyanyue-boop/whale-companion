@@ -52,7 +52,8 @@ function renderModels(data){
 function hasChannelAccounts(channel){return Boolean(channel)&&!['astrbot','ofm-local','our-free-model'].includes(channel)}
 function renderModelChoices(selected){const target=$('model-choice');target.replaceChildren();for(const item of modelData.choices.filter(p=>p.channel===$('model-channel').value)){const option=node('option','',item.name);option.value=item.model;target.append(option)}if(selected&&[...target.options].some(p=>p.value===selected))target.value=selected;renderMultiplier();$('channel-accounts').replaceChildren();$('credit-state').textContent=hasChannelAccounts($('model-channel').value)?'点击查询剩余积分，获取账号余额与签到状态。':'当前来源不使用 DSH 账号积分管理。';$('daily-checkin').disabled=true;$('auto-checkin').disabled=true}
 async function loadModels(){const r=await api('GET','models');renderModels(r.data||r)}
-function renderMultiplier(){const item=modelData.choices.find(p=>p.channel===$('model-channel').value&&p.model===$('model-choice').value);$('model-multiplier').textContent=item?.multiplier!==null&&item?.multiplier!==undefined?'积分消耗倍率：×'+item.multiplier+'（渠道公布值；实际扣费以渠道账单为准）':'该模型未公布积分消耗倍率';$('refresh-credits').disabled=!hasChannelAccounts($('model-channel').value)}
+// 优先展示 DSH 原样给出的费率，保留折扣箭头与免费标记。
+function renderMultiplier(){const item=modelData.choices.find(p=>p.channel===$('model-channel').value&&p.model===$('model-choice').value);const rate=item?.pricing_label??(item?.multiplier!=null?'×'+item.multiplier:'');$('model-multiplier').textContent=rate?'积分计费：'+rate+'（渠道公布值；实际扣费以渠道账单为准）':'该模型未公布积分消耗倍率';$('refresh-credits').disabled=!hasChannelAccounts($('model-channel').value)}
 $('model-choice').onchange=renderMultiplier;
 $('model-channel').onchange=()=>{renderModelChoices();if(hasChannelAccounts($('model-channel').value))loadCredits('read',{},false)};
 let creditsBusy=false;

@@ -216,6 +216,9 @@ def test_catalog_only_reads_metadata_and_never_returns_secrets(monkeypatch):
                         "input": ["text", "image"],
                     },
                     {"id": "qoder/auto"},
+                    {"id": "qoder/kmodel", "name": "Kimi-K2.8-Preview · x0.8"},
+                    {"id": "qoder/qmodel", "name": "Qwen3.7-Plus · x0.1→x0.04"},
+                    {"id": "qoder/qfmodel", "name": "Qwen3.8-Flash · 免费"},
                     {"id": 17},
                 ]
             }
@@ -232,10 +235,17 @@ def test_catalog_only_reads_metadata_and_never_returns_secrets(monkeypatch):
     monkeypatch.setattr("model_channels.aiohttp.ClientSession", Session)
     data = asyncio.run(service.catalog())
     assert calls == ["http://127.0.0.1:8326/v1/models"]
-    assert len(data["choices"]) == 3
+    assert len(data["choices"]) == 6
     assert "image" in data["choices"][1]["modalities"]
     assert data["choices"][1]["multiplier"] == 0.39
     assert data["choices"][2]["multiplier"] is None
+    assert data["choices"][2]["name"] == "auto"
+    kimi, qwen, free = data["choices"][3:]
+    assert kimi["name"] == "Kimi-K2.8-Preview · x0.8"
+    assert kimi["model"] == "qoder/kmodel"
+    assert qwen["pricing_label"] == "x0.1→x0.04"
+    assert qwen["multiplier"] is None
+    assert free["pricing_label"] == "免费"
     assert "image" not in data["choices"][2]["modalities"]
     assert not data["gateway_error"]
     assert "secret" not in json.dumps(data)
