@@ -1,0 +1,12 @@
+{
+  "views": {
+    "whale": {
+      "title": "Whale 主机",
+      "description": "管理手机连接、QQ 助手、模型渠道和应用权限。"
+    },
+    "sts2": {
+      "title": "STS2 联机",
+      "description": "配置 STS2MCP、本机双人及 LAN 三人实验模式，生成好友加入说明。"
+    }
+  }
+}

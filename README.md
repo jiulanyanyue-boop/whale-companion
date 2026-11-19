@@ -33,6 +33,18 @@ powershell -ExecutionPolicy Bypass -File .\Install.ps1 -OwnerQQ $ownerQQ
 
 安装器原本生成无 BOM 的 UTF-8，因此全新安装不必然遇到本次故障；旧版本配置被 Windows 工具另存为带 BOM 后仍可能触发。新电脑需要使用包含本修复的源码重新构建，仅复制旧 EXE 或拉取尚未更新的远端版本不会获得修复。本机验证范围和跨机器边界见 `VERIFICATION.md`。
 
+### Whale 主机侧栏入口
+
+“Whale 主机”和“STS2 联机”是同一插件的两个独立页面。固定版 AstrBot 原平铺菜单只取排序后的第一页，新增 `sts2` 后会隐藏原 `whale` 入口，但主机页面和配置并未删除。安装器现在会应用一个固定摘要校验的菜单兼容补丁，平铺模式显示所有页面；分组模式、标题解析、置顶偏好和其他页面行为保持原样，不需要清除浏览器数据或重新配置账号。
+
+已有安装只需更新源码后执行以下局部修复，无需重装依赖或重建桌面 EXE：
+
+~~~powershell
+.\.verify\setup-venv\Scripts\python.exe .\tools\patch_dashboard_sidebar.py --dashboard .\runtime\astrbot\astrbot\dashboard\dist --source .\runtime\astrbot\dashboard\src\composables\usePluginSidebarItems.ts
+~~~
+
+修复不停止后台。普通浏览器重新加载管理页即可；已打开的桌面壳若仍显示旧菜单，须退出托盘应用后重新打开以载入新脚本，这会短暂重连服务。补丁遇到未知或手动修改过的前端资产时会拒绝修改，不应强行套用到其他版本。
+
 ## 复用 AstrBot 官方安装 EXE
 
 可以用 [官方 Launcher](https://github.com/AstrBotDevs/astrbot-launcher) 安装普通 AstrBot 作为独立插件宿主，但官方安装器不包含本仓库框架补丁与桌面服务。完整整合模式使用 Install.ps1，避免两套实例争用端口。不要复制旧电脑的安装目录、账号数据库或内嵌环境。

@@ -3,6 +3,14 @@
     "url": "https://github.com/AstrBotDevs/AstrBot",
     "revision": "10364e85a35d2f76bfcd706e1505652817565065",
     "patch_sha256": "f012f720e985e5e905f629a00f3429132cfde99ca216cdca9da0049689f274d1",
+    "dashboard_sidebar_patch": {
+      "release": "v4.29.4",
+      "script": "tools/patch_dashboard_sidebar.py",
+      "asset": "assets/ReadmeDialog-DszoJEdN.js",
+      "original_sha256": "e8a75db40206e01f5c9883f6da77e6c0e42d8964034a30693a4a9295942eb3f8",
+      "patched_sha256": "d4f22ff6590667102ab4fac771164bc12a5b862f3a497f152675de7b037ae723",
+      "source_file": "dashboard/src/composables/usePluginSidebarItems.ts"
+    },
     "changed_files": [
       "astrbot/core/agent/runners/tool_loop_agent_runner.py",
       "astrbot/core/agent/tool_discovery.py",

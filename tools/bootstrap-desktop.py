@@ -95,6 +95,8 @@ asyncio.run(main())
             for item in bundle.infolist():
                 if not (dashboard.parent/item.filename).resolve().is_relative_to(dashboard.parent.resolve()):raise ValueError('invalid dashboard archive path')
             bundle.extractall(dashboard.parent)
+    run(sys.executable,ROOT/'tools/patch_dashboard_sidebar.py','--dashboard',dashboard,
+        '--source',bot/'dashboard/src/composables/usePluginSidebarItems.ts')
     print('Bootstrap ready. Configure a vision-capable chat model and its API key in AstrBot. Build with tools/build-host.ps1.')
 
 if __name__=='__main__':main()
