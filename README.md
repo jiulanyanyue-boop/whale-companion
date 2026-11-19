@@ -51,6 +51,16 @@ powershell -ExecutionPolicy Bypass -File .\Install.ps1 -OwnerQQ $ownerQQ
 
 ## 开发与更新
 
+### 在 Whale 中使用 DSH 的 Our Free Model
+
+Whale 分别读取 DSH 账号渠道网关（默认 8326）和 Our Free Model 自己的本地转发（默认 18899）；DSH 桌面模型选择器并不等于这两份对外目录。
+
+1. 在同一台电脑的 DSH 中启用 Our Free Model。打开 **设置 → Our Free Model → 免费模型 → 本地转发**，勾选「启用转发端口」，监听地址保持 `127.0.0.1`，点击「应用」。不需要开启局域网访问，也不需要把密钥粘贴给 Whale。
+2. 在 DSH 里确认要给 Whale 使用的模型没有被隐藏。若端口被占用，选择一个空闲端口并应用，确保 DSH 实际监听端口与保存的端口相同。
+3. 在 **Whale 主机 → 模型渠道** 点击「刷新模型」，在渠道中选择 **Our Free Model**，再按需选择模型并点「切换模型」。只刷新不会修改默认模型或发出推理请求。
+
+Whale 从同用户的 DSH 本地设置读取转发密钥，仅在运行时使用；AstrBot 配置只存环境变量引用。旧 DSH 账号渠道和积分/签到逻辑保持独立。若更换 OFM 转发端口或密钥，重新刷新并选择模型即可重载提供商。模型是否能完成推理由所选上游决定；例如 OpenCode 免费车道需要本机 Bun。
+
 - host/：主机服务、桌面、权限、设备协议和回归测试。
 - device/：Android 工程；用 Android Studio 打开，安装 SDK 36、JDK 17，使用 Gradle 8.9 构建 `:app:assembleDebug`。旧手工脚本需要 ANDROID_HOME、JAVA_HOME、WHALE_KOTLIN_LIB 和其声明的 SDK 34 工具链。
 - plugin-sources/：四个插件的维护源码，安装器复制到 runtime/astrbot/data/plugins。

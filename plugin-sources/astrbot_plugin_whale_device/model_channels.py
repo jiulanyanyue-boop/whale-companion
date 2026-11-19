@@ -11,8 +11,16 @@ from pathlib import Path
 
 import aiohttp
 
+try:
+    from .ofm_gateway import OFM_KEY_ENV, read_ofm_gateway
+except ImportError:
+    from ofm_gateway import OFM_KEY_ENV, read_ofm_gateway
+
 DSH_PROVIDER_ID = "whale_dsh"
 DSH_KEY_ENV = "WHALE_DSH_MODEL_KEY"
+OFM_PROVIDER_ID = "whale_ofm"
+OFM_CHANNEL = "ofm-local"
+LEGACY_OFM_CHANNEL = "our-free-model"
 CHANNEL_NAMES = {
     "trae": "Trae 积分",
     "qoder": "Qoder",
@@ -60,6 +68,45 @@ class ModelChannels:
         )
         os.environ["NO_PROXY"] = os.environ["no_proxy"] = bypass
 
+    async def _ofm_catalog(self):
+        """独立读取 OFM 公开模型列表，不使用 DSH 账号渠道的凭据或解析规则。"""
+        try:
+            gateway = read_ofm_gateway()
+        except ValueError as exc:
+            return [], str(exc)
+        if gateway is None:
+            return [], ""
+        base, key = gateway
+        try:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=5), trust_env=False
+            ) as session:
+                async with session.get(
+                    base + "/models", headers={"Authorization": f"Bearer {key}"},
+                    allow_redirects=False,
+                ) as response:
+                    if response.status != 200:
+                        raise ValueError("Unexpected model catalog status")
+                    rows = (await response.json()).get("data")
+                    if not isinstance(rows, list):
+                        raise ValueError("Invalid model catalog")
+        except (aiohttp.ClientError, TimeoutError, ValueError, TypeError, AttributeError):
+            return [], "Our Free Model 网关暂不可用，请确认 DSH 正在运行且网关实际端口与设置一致。"
+        choices = {}
+        for row in rows:
+            model = row.get("id") if isinstance(row, dict) else None
+            if not isinstance(model, str) or not model.strip():
+                continue
+            inputs = row.get("input")
+            choices[model] = {
+                "channel": OFM_CHANNEL, "channel_name": "Our Free Model",
+                "model": model, "name": row.get("name") if isinstance(row.get("name"), str) else model,
+                "modalities": ["text", "tool_use"] + (
+                    ["image"] if isinstance(inputs, list) and "image" in inputs else []
+                ),
+            }
+        return list(choices.values()), "" if choices else "Our Free Model 网关在线，但暂无可见模型；请检查 DSH 的模型隐藏设置。"
+
     async def catalog(self):
         """Read model metadata without making a paid inference request.
 
@@ -77,7 +124,7 @@ class ModelChannels:
                 "name": str(p.get("model") or p["id"]),
             }
             for p in providers
-            if p.get("id") != DSH_PROVIDER_ID
+            if p.get("id") not in (DSH_PROVIDER_ID, OFM_PROVIDER_ID)
             and p.get("enable")
             and p.get("provider_type", "chat_completion") == "chat_completion"
             and p.get("id") in context.provider_manager.inst_map
@@ -140,6 +187,7 @@ class ModelChannels:
                 AttributeError,
             ):
                 error = "DSH 模型网关暂不可用，请确认 DSH 正在运行、渠道账号已登录。"
+        ofm_choices, ofm_error = await self._ofm_catalog()
         profiles = context.astrbot_config_mgr.confs
         profile_ids = [
             "default",
@@ -173,13 +221,26 @@ class ModelChannels:
                 {
                     "profile": profile_id,
                     "provider_id": provider_id,
-                    "channel": model.split("/", 1)[0]
-                    if provider_id == DSH_PROVIDER_ID
-                    else "astrbot",
-                    "model": model if provider_id == DSH_PROVIDER_ID else provider_id,
+                    "channel": OFM_CHANNEL if provider_id == OFM_PROVIDER_ID else (
+                        model.split("/", 1)[0] if provider_id == DSH_PROVIDER_ID else "astrbot"
+                    ),
+                    "model": model if provider_id in (DSH_PROVIDER_ID, OFM_PROVIDER_ID) else provider_id,
                 }
             )
-        return {"choices": choices, "selections": selections, "gateway_error": error}
+        # 同一模型可能也通过旧网关导出；去重但保留已有配置正在使用的旧入口。
+        direct_ids = {choice["model"] for choice in ofm_choices}
+        active_legacy_ids = {item["model"] for item in selections if item["channel"] == LEGACY_OFM_CHANNEL}
+        choices = [
+            choice for choice in choices
+            if choice["channel"] != LEGACY_OFM_CHANNEL
+            or choice["model"] in active_legacy_ids
+            or choice["model"].split("/", 1)[1] not in direct_ids
+        ]
+        return {
+            "choices": choices + ofm_choices, "selections": selections,
+            "gateway_error": error, "ofm_gateway_error": ofm_error,
+            "ofm_online": bool(ofm_choices),
+        }
 
     async def select(self, channel, model):
         """Save the default and Whale profiles through official provider objects.
@@ -209,7 +270,9 @@ class ModelChannels:
                 raise ValueError("该渠道或模型当前不可用，请刷新列表后重试。")
             context = self.plugin.context
             manager = context.provider_manager
-            provider_id = model if channel == "astrbot" else DSH_PROVIDER_ID
+            provider_id = model if channel == "astrbot" else (
+                OFM_PROVIDER_ID if channel == OFM_CHANNEL else DSH_PROVIDER_ID
+            )
             profiles = context.astrbot_config_mgr.confs
             ids = dict.fromkeys(
                 [
@@ -238,19 +301,29 @@ class ModelChannels:
                 (
                     copy.deepcopy(p)
                     for p in context.get_config().get("provider", [])
-                    if p.get("id") == DSH_PROVIDER_ID
+                    if p.get("id") == provider_id
                 ),
                 None,
             )
             if channel != "astrbot":
+                if channel == OFM_CHANNEL:
+                    gateway = read_ofm_gateway()
+                    if gateway is None:
+                        raise ValueError("Our Free Model 网关已不可用，请刷新列表。")
+                    api_base, key = gateway
+                    key_env = OFM_KEY_ENV
+                    os.environ[key_env] = key
+                else:
+                    api_base = f"http://127.0.0.1:{int(os.environ.get('DSH_OPENAI_GATEWAY_PORT', '8326'))}/v1"
+                    key_env = DSH_KEY_ENV
                 config = {
-                    "id": DSH_PROVIDER_ID,
+                    "id": provider_id,
                     "type": "openai_chat_completion",
                     "provider_type": "chat_completion",
                     "provider": "openai",
                     "enable": True,
-                    "key": ["$" + DSH_KEY_ENV],
-                    "api_base": f"http://127.0.0.1:{int(os.environ.get('DSH_OPENAI_GATEWAY_PORT', '8326'))}/v1",
+                    "key": ["$" + key_env],
+                    "api_base": api_base,
                     "model": model,
                     "timeout": 120,
                     "proxy": "",
@@ -260,13 +333,13 @@ class ModelChannels:
                 }
                 try:
                     if previous_provider is not None:
-                        await manager.update_provider(DSH_PROVIDER_ID, config)
+                        await manager.update_provider(provider_id, config)
                     else:
                         await manager.create_provider(config)
                 except Exception:
                     if previous_provider is not None:
                         await manager.update_provider(
-                            DSH_PROVIDER_ID, previous_provider
+                            provider_id, previous_provider
                         )
                     raise
             if provider_id not in manager.inst_map:
@@ -281,7 +354,7 @@ class ModelChannels:
                     profile.save_config()
             except Exception:
                 if channel != "astrbot" and previous_provider is not None:
-                    await manager.update_provider(DSH_PROVIDER_ID, previous_provider)
+                    await manager.update_provider(provider_id, previous_provider)
                 for profile, backup in zip(targets, backups):
                     profile["agent_runner"] = backup
                     profile.save_config()
@@ -345,7 +418,7 @@ class ModelChannels:
         Raises:
             ValueError: If arguments do not match an available account or channel.
         """
-        if channel == "astrbot" or channel not in {
+        if channel in ("astrbot", OFM_CHANNEL, LEGACY_OFM_CHANNEL) or channel not in {
             p["channel"] for p in (await self.catalog())["choices"]
         }:
             raise ValueError("当前渠道未提供 DSH 账号积分管理。")

@@ -5,6 +5,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ASTR = ROOT/'runtime/astrbot'
 
+def load_ofm_key(env):
+    """在 AstrBot 初始化模型实例前注入 OFM 的独立密钥，不写配置或日志。"""
+    source = ASTR/'data/plugins/astrbot_plugin_whale_device/ofm_gateway.py'
+    if not source.is_file():
+        return
+    spec = importlib.util.spec_from_file_location('whale_ofm_gateway', source)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        gateway = module.read_ofm_gateway()
+    except ValueError:
+        return  # 选装网关不可用不影响 AstrBot 启动，页面会单独显示原因。
+    if gateway is not None:
+        env[module.OFM_KEY_ENV] = gateway[1]
+
 def credentials_from_file(path: Path) -> dict[str, str]:
     if not path.is_file(): return {}
     values = {}
@@ -70,7 +85,9 @@ def main():
     flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
     with (logs/'embedding.log').open('a', encoding='utf-8') as emb_log, (logs/'astrbot.log').open('a', encoding='utf-8') as bot_log:
         try:
-            bot = subprocess.Popen([sys.executable, 'main.py'], cwd=ASTR, env=env, stdout=bot_log, stderr=subprocess.STDOUT, creationflags=flags)
+            bot_env = env.copy()
+            load_ofm_key(bot_env)
+            bot = subprocess.Popen([sys.executable, 'main.py'], cwd=ASTR, env=bot_env, stdout=bot_log, stderr=subprocess.STDOUT, creationflags=flags)
             children.append(bot)
             emb = None
             try:

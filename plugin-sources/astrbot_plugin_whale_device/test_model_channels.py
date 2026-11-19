@@ -6,6 +6,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 from model_channels import DSH_KEY_ENV, DSH_PROVIDER_ID, ModelChannels
+from ofm_gateway import read_ofm_gateway
+
+
+@pytest.fixture(autouse=True)
+def isolate_dsh_home(monkeypatch, tmp_path):
+    """让模型目录测试不读取本机 DSH 配置或发送真实网关请求。"""
+    monkeypatch.setenv("DSH_HOME", str(tmp_path))
 
 
 class Config(dict):
@@ -70,6 +77,85 @@ def make_service(monkeypatch):
         )
     )
     return service, configs, manager
+
+
+def test_ofm_gateway_keeps_model_ids_and_uses_its_own_provider(monkeypatch, tmp_path):
+    """分离两个网关的凭据和地址，原样使用不带或带斜线的 OFM 模型 ID。"""
+    monkeypatch.setenv("DSH_HOME", str(tmp_path))
+    monkeypatch.delenv("WHALE_OFM_MODEL_KEY", raising=False)
+    settings = tmp_path / "our-free-model" / "settings.json"
+    settings.parent.mkdir()
+    settings.write_text(json.dumps({"forwardKey": "ofm-private-test-key", "forward": {
+        "enabled": True, "host": "127.0.0.1", "port": 18917,
+    }}), encoding="utf-8")
+    service, profiles, manager = make_service(monkeypatch)
+    calls = []
+
+    class Response:
+        status = 200
+
+        def __init__(self, rows):
+            self.rows = rows
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def json(self):
+            return {"data": self.rows}
+
+    class Session(Response):
+        def __init__(self, **kwargs):
+            assert kwargs["trust_env"] is False
+
+        def get(self, url, **kwargs):
+            assert kwargs["allow_redirects"] is False
+            calls.append((url, kwargs["headers"]["Authorization"]))
+            if ":8326/" in url:
+                return Response([{"id": "qoder/auto"}, {"id": "our-free-model/kilo/model:free"}])
+            return Response([{"id": "deepseek-flash-free"}, {"id": "kilo/model:free"}])
+
+    monkeypatch.setattr("model_channels.aiohttp.ClientSession", Session)
+    catalog = asyncio.run(service.catalog())
+    assert [(p["channel"], p["model"]) for p in catalog["choices"]] == [
+        ("astrbot", "whale_chat"), ("qoder", "qoder/auto"),
+        ("ofm-local", "deepseek-flash-free"), ("ofm-local", "kilo/model:free"),
+    ]
+    assert calls == [("http://127.0.0.1:8326/v1/models", "Bearer private-test-key"),
+                     ("http://127.0.0.1:18917/v1/models", "Bearer ofm-private-test-key")]
+    assert "private-test-key" not in json.dumps(catalog)
+    assert not catalog["ofm_gateway_error"]
+    asyncio.run(service.select("qoder", "qoder/auto"))
+    before = copy.deepcopy(profiles["default"]["provider"][-1])
+    updated = asyncio.run(service.select("ofm-local", "kilo/model:free"))
+    assert profiles["default"]["provider"][-2] == before
+    saved = manager.create_provider.await_args.args[0]
+    assert saved["id"] == "whale_ofm"
+    assert saved["api_base"] == "http://127.0.0.1:18917/v1"
+    assert saved["model"] == "kilo/model:free"
+    assert saved["key"] == ["$WHALE_OFM_MODEL_KEY"]
+    assert updated["selections"][0]["channel"] == "ofm-local"
+    with pytest.raises(ValueError):
+        asyncio.run(service.accounts("ofm-local"))
+    settings.unlink()
+    fallback = asyncio.run(service.catalog())
+    assert any(p["model"] == "our-free-model/kilo/model:free" for p in fallback["choices"])
+    assert not fallback["ofm_online"]
+
+
+@pytest.mark.parametrize("override", [{"host": "0.0.0.0"}, {"port": True}, {"enabled": False}])
+def test_invalid_ofm_config_never_returns_credentials(tmp_path, override):
+    """禁用、非回环或畸形端口一律拒绝，错误中不包含转发凭据。"""
+    settings = tmp_path / "our-free-model" / "settings.json"
+    settings.parent.mkdir()
+    settings.write_text(json.dumps({"forwardKey": "not-for-diagnostics", "forward": {
+        "enabled": True, "host": "127.0.0.1", "port": 18899, **override,
+    }}), encoding="utf-8")
+    with pytest.raises(ValueError) as failure:
+        read_ofm_gateway()
+    assert "not-for-diagnostics" not in str(failure.value)
 
 
 def choices():
