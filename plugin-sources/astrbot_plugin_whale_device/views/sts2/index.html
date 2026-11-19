@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>STS2 联机</title>
+  <style>
+    :root{color-scheme:light dark;--ink:#20372d;--muted:#697b72;--line:#d7e1db;--paper:#f5f8f5;--panel:#fff;--green:#17734d;--red:#b7473f;--amber:#956000}
+    [data-theme=dark]{--ink:#e5eee8;--muted:#a4b2aa;--line:#3a4b42;--paper:#171e1a;--panel:#202923;--green:#63c28f;--red:#ff8075;--amber:#e7bd58}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.55 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+    main{max-width:940px;margin:0 auto;padding:28px 20px 48px}header{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:20px}
+    h1,h2,p{margin:0}h1{font-size:24px}h2{font-size:16px}.sub,.hint{color:var(--muted)}.sub{margin-top:4px}.hint{font-size:12px}.warning{color:var(--amber);margin-top:12px}
+    section{border-bottom:1px solid var(--line);padding:20px 0}section:first-of-type{padding-top:4px}.head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+    .actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px}button{font:inherit;cursor:pointer;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--ink);padding:8px 12px}
+    button.primary{background:var(--green);border-color:var(--green);color:#fff}button:disabled{opacity:.55;cursor:not-allowed}label.field{display:grid;gap:5px;min-width:min(300px,100%);flex:1}
+    input[type=text],input[type=number],select,textarea{font:inherit;width:100%;min-width:0;padding:8px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--ink)}textarea{resize:vertical}.route{border-left:3px solid var(--green);padding:12px 14px;margin:14px 0;background:var(--panel)}.route h3{font-size:14px;margin:0 0 8px}.route code{overflow-wrap:anywhere}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+    .switch{display:inline-flex;align-items:center;gap:8px}.switch input{width:17px;height:17px;accent-color:var(--green)}.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+    .fact{padding:10px;border-left:3px solid var(--line);background:var(--panel);overflow-wrap:anywhere}.fact b{display:block;margin-top:3px}.steps{padding-left:22px}.steps li{padding:5px 0}
+    .features{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 22px;margin:12px 0 0;padding-left:18px}#notice{min-height:20px;color:var(--muted);margin-top:14px}#notice.error{color:var(--red)}#notice.ok{color:var(--green)}
+    a{color:var(--green)}[hidden]{display:none!important}@media(max-width:650px){main{padding:20px 14px 32px}header,.head{align-items:flex-start;flex-direction:column}.facts,.features{grid-template-columns:1fr}}
+  </style>
+</head>
+<body><main>
+  <header><div><h1>杀戮尖塔 2 联机</h1><p class="sub">本机与你组队，也为远程朋友预留一个位置</p></div><button id="refresh" type="button">刷新状态</button></header>
+  <section>
+    <div class="head"><h2>连接与安装</h2><label class="switch"><input id="enabled" type="checkbox"><span>允许 AI 使用游戏工具</span></label></div>
+    <label class="field">联机模式<select id="transport"><option value="local">本机双人 · FastMP</option><option value="lan">本机双开 + 远程朋友 · LanSpire 实验模式</option></select></label>
+    <p id="mode-hint" class="hint" style="margin-top:8px"></p>
+    <div class="actions"><button class="primary" id="setup">一键配置当前模式</button><button id="save">保存设置</button></div>
+    <div class="actions">
+      <label class="field">Steam 游戏目录<input id="game-dir" type="text" placeholder="例如 D:\SteamLibrary\steamapps\common\Slay the Spire 2"></label>
+      <label class="field" style="max-width:180px;min-width:150px">MCP API 端口<input id="port" type="number" min="1024" max="65535" value="15526"></label>
+    </div>
+    <div class="facts"><div class="fact"><span class="hint">游戏目录</span><b id="path-state">读取中</b></div><div class="fact"><span class="hint">STS2MCP</span><b id="mod-state">读取中</b></div><div class="fact"><span class="hint">本机 API</span><b id="api-state">读取中</b></div></div>
+    <div class="actions"><button id="install">安装 / 更新 STS2MCP</button><button id="uninstall">卸载 STS2MCP</button><button class="primary" id="start">启动 AI 房主</button><button id="join">启动本机加入端</button><button id="stop">停止 Whale 启动的窗口</button></div>
+    <p id="process-state" class="hint" style="margin-top:10px"></p><div id="notice" role="status" aria-live="polite"></div>
+  </section>
+  <section id="lan-panel" hidden>
+    <div class="head"><h2>远程朋友加入</h2><span id="lan-state" class="hint">LanSpire 未配置</span></div>
+    <p>同一房间最多 4 人，当前方案为 AI、你、朋友三人。支持公网直连或自有服务器中转，不要求虚拟局域网，也不使用 Steam 邀请。</p>
+    <div class="actions"><button id="lan-install">安装 / 配置 LAN Mod</button><button id="lan-uninstall">卸载受管 LAN Mod</button><a href="https://github.com/Madlezz/LanSpire/releases/tag/v0.11.0" target="_blank" rel="noopener noreferrer">朋友下载同版 LanSpire</a></div>
+    <div class="actions">
+      <label class="field">朋友连接入口<select id="connection"><option value="direct">家宽公网 IPv4 / 域名直连</option><option value="relay">公网服务器 · frp UDP 中转</option><option value="lan">同一局域网 / 已有 VPN</option></select></label>
+      <label class="field" style="max-width:180px;min-width:150px">外部游戏端口（UDP）<input id="public-port" type="number" min="1024" max="65535" value="33771"></label>
+    </div>
+    <div id="address-panel" class="actions">
+      <label class="field"><span id="share-label">分享给朋友的 IPv4 / 域名</span><input id="share-address" type="text" placeholder="只填地址，不含协议、路径或端口" maxlength="253"></label>
+      <label id="candidate-panel" class="field">本机网卡候选<select id="address-candidate"><option value="">选择地址，或手动填写</option></select></label>
+    </div>
+    <div id="direct-guide" class="route" hidden>
+      <h3>公网直连：只映射游戏 UDP</h3>
+      <p>路由器端口映射：外部 UDP <b id="mapping-port">33771</b> → 房主电脑内网 IPv4 的 UDP 33771。给房主内网地址做 DHCP 保留，并手动允许游戏 UDP 入站。</p>
+      <p class="hint">先核对路由器 WAN IPv4 与运营商分配的公网地址；内网地址、100.64/10、双重 NAT 或运营商入站限制可能使直连失败。Whale 不自动查询公网 IP，不修改路由器或防火墙。TCP 端口检测不能证明 UDP 能联机。</p>
+    </div>
+    <div id="relay-panel" class="route" hidden>
+      <h3>服务器 UDP 中转 <span id="relay-state" class="hint">尚未配置</span></h3>
+      <div class="actions">
+        <label class="field">服务器公网 IPv4 / 域名<input id="relay-host" type="text" placeholder="例如 game.example.com" maxlength="253"></label>
+        <label class="field" style="max-width:180px;min-width:150px">控制端口（TCP/TLS）<input id="relay-control-port" type="number" min="1024" max="65535" value="7000"></label>
+      </div>
+      <div class="actions"><button id="relay-prepare">生成新部署包并下载</button><button id="relay-download">下载当前部署包</button><button id="relay-install">安装中转客户端</button><button class="primary" id="relay-start">启动中转</button><button id="relay-stop">停止中转</button></div>
+      <ol class="steps">
+        <li>保存服务器地址与端口，生成配套私有部署包。上传到自己的 Linux x64 服务器，以私有权限解压，执行 <code>sh install.sh</code> 下载并校验 frps。</li>
+        <li>按包内 README 手动放行服务器控制 TCP 端口和外部游戏 UDP 端口；在解压目录执行 <code>./frps -c ./frps.toml</code>。脚本不会自动启动服务或改防火墙。</li>
+        <li>回本页安装客户端、启动中转，再按下方步骤开房。朋友只填服务器地址和外部 UDP 端口，不需安装 frp，也不需 VPN。</li>
+      </ol>
+      <p id="relay-detail" class="hint"></p>
+      <p class="warning">部署包含 token 和服务器私钥，不能发给朋友或公开上传。重新生成会更换凭据和证书，必须将完整新包同步部署到服务器；重复下载当前包不会换凭据。客户端不会随 Whale 自动启动，插件正常退出会停止受管客户端。</p>
+    </div>
+    <p id="connection-hint" class="hint" style="margin-top:8px"></p>
+    <p class="hint">你的本机加入端始终填写 127.0.0.1:33771，不能填写公网地址。本机游戏固定 UDP 33771；不要转发或分享 MCP API 15526 或 Whale 管理页面。</p>
+    <label class="field" style="margin-top:12px">好友加入说明<textarea id="invite" rows="8" readonly></textarea></label>
+    <div class="actions"><button id="copy-invite">复制好友加入说明</button></div><p id="lan-backup" class="hint"></p>
+    <p class="warning">实验模式尚未游戏验收。两个窗口必须选择不同的游戏档案，避免共用存档；Whale 未隔离整个游戏用户目录。为避免共享配置让两个实例使用同一个自定义身份，已有自定义 LAN 玩家 ID 时拒绝自动配置。LAN 开房和 IP 加入由你手动操作游戏菜单。</p>
+  </section>
+  <section>
+    <div class="head"><h2>开局步骤</h2><span class="hint">首次启用 Mod 后按游戏提示重启，再从本页启动</span></div>
+    <ol id="local-steps" class="steps">
+      <li>保持 Steam 运行、游戏窗口模式；选择本机双人，一键配置 STS2MCP。</li>
+      <li>点击“启动 AI 房主”，在第一个窗口进入“多人 → 创建 / Host”。</li>
+      <li>点击“启动本机加入端”，在第二个窗口进入“多人 → 加入 / Join”，自动连接 127.0.0.1:33771。</li>
+      <li>选角色、双方准备后开局。第一个窗口由 AI 控制，第二个窗口由你控制。</li>
+    </ol>
+    <ol id="lan-steps" class="steps" hidden>
+      <li>保持 Steam 运行，关闭已有游戏窗口；选择 LanSpire 实验模式，保存好友入口，点击“一键配置当前模式”。首次在游戏中启用 STS2_MCP 和 LanSpire 并按提示重启。</li>
+      <li>点击“启动 AI 房主”。手动为 AI 选一个独立游戏档案，在多人页点“创建局域网 / Host LAN”，进入角色选择房间。</li>
+      <li>点击“启动本机加入端”。为自己选择另一个游戏档案，进入“加入局域网 / Join LAN”，填 127.0.0.1 和 33771，再点击 LAN 加入按钮。</li>
+      <li>公网直连先完成路由器 UDP 映射；服务器中转先部署服务端并从本页启动中转。复制上方说明发给朋友，朋友使用同版游戏和 LanSpire，进入 Join LAN，填写分享地址和外部端口。</li>
+      <li>确认房间中出现三个不同玩家后再选角色、准备并开局；不要在第三人到齐前开始新 run。AI 在多人局中继续使用现有 STS2 工具。</li>
+    </ol>
+    <p class="hint">地图、共同事件、宝箱和结束回合可能需要所有玩家分别投票。停止按钮仅关闭记录身份匹配的受管进程；不会关闭手动启动的游戏。更新或卸载 Mod 前必须关闭游戏。</p>
+  </section>
+  <section>
+    <div class="head"><h2>AI 可以做什么</h2><span class="hint">游戏内 Mod + 本机 REST API</span></div>
+    <p>Whale 直接调用本机 STS2MCP，不需要另开 MCP server。仅主人 QQ 私聊、且页面开关开启时允许调用。</p>
+    <ul class="features"><li>读取多人局、自己的角色、队友与战斗状态。</li><li>出牌、选目标和卡牌、使用或丢弃药水。</li><li>结束 / 撤回回合投票，地图与事件决策。</li><li>营火、商店、宝箱遗物、奖励和特殊选择。</li></ul>
+    <p class="hint" style="margin-top:12px">当前接入 29 个白名单动作，不开放单人局操控、档案切换/删除或 Wiki 接口。LAN 新增菜单按钮不由 AI 自动点击。通过主人 QQ 对话驱动，未实现持续后台打牌循环。STS2MCP 多人和本页 LAN 三人组合均需实机确认。</p>
+  </section>
+</main><script type="module" src="./app.js"></script></body>
+</html>

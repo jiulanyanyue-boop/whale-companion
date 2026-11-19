@@ -40,6 +40,7 @@ try:
     from .relation_policy import GROUP_GUIDANCE, OWNER_GUIDANCE, PHONE_ROLE_CONTEXT
     from .voice import MAX_AUDIO_BYTES, VoiceService
     from .voice_calls import VoiceCallRuntime
+    from .sts2 import MULTIPLAYER_ACTIONS, STS2Error, STS2Manager
 except ImportError:
     from autonomy import (
         INITIATIVE_GUIDANCE,
@@ -51,6 +52,7 @@ except ImportError:
     from relation_policy import GROUP_GUIDANCE, OWNER_GUIDANCE, PHONE_ROLE_CONTEXT
     from voice import MAX_AUDIO_BYTES, VoiceService
     from voice_calls import VoiceCallRuntime
+    from sts2 import MULTIPLAYER_ACTIONS, STS2Error, STS2Manager
 
 _plugin_dir = Path(__file__).resolve().parent
 for _core_path in [_plugin_dir / "_core"] + (
@@ -154,6 +156,9 @@ class WhaleDevicePlugin(Star):
         self.voice = VoiceService(
             self.config, StarTools.get_data_dir("astrbot_plugin_whale_device") / "voice"
         )
+        self.sts2 = STS2Manager(
+            self.config, StarTools.get_data_dir("astrbot_plugin_whale_device") / "sts2"
+        )
         self._voice_send_lock = asyncio.Lock()
         self.activities = None
         self.device_error = ""
@@ -222,6 +227,12 @@ class WhaleDevicePlugin(Star):
         self.voice_calls.start()
 
     async def terminate(self):
+        """卸载插件时清理本插件受管中转，不接管用户手动启动的游戏或服务。"""
+        if getattr(self, "sts2", None) is not None:
+            try:
+                await asyncio.to_thread(self.sts2.relay.stop)
+            except Exception:
+                logger.warning("STS2 中转客户端未能安全停止，请在 STS2 联机页查看")
         if getattr(self, "voice_calls", None) is not None:
             await self.voice_calls.close()
         if getattr(self, "activities", None) is not None:
@@ -238,6 +249,41 @@ class WhaleDevicePlugin(Star):
         yield event.plain_result(
             "小鲸伴源码与开源许可：https://github.com/jiulanyanyue-boop/whale-companion"
         )
+
+    @llm_tool(name="sts2_multiplayer_state")
+    async def sts2_multiplayer_state(self, event: AstrMessageEvent):
+        """读取合作模式当前状态。仅主人 QQ 私聊且 STS2 联机页已启用工具时可用；操作前先读取此状态。"""
+        if not self._is_owner_private(event) or not self.sts2.enabled():
+            return json.dumps({"available": False, "reason": "owner_private_tool_disabled"})
+        try:
+            state = await asyncio.to_thread(self.sts2.game_state)
+            return json.dumps(state, ensure_ascii=False)
+        except STS2Error as exc:
+            logger.warning("STS2 state read failed: %s", str(exc))
+            return json.dumps({"available": False, "reason": "sts2_unavailable"})
+
+    @llm_tool(name="sts2_multiplayer_action")
+    async def sts2_multiplayer_action(
+        self, event: AstrMessageEvent, action: str, parameters: dict
+    ):
+        """执行一项 STS2 合作模式动作。必须先读取 sts2_multiplayer_state，只用状态公开的索引和 ID；每项操作后重新读状态，不重试不确定的回执。多人结束回合是投票，地图/事件/宝箱须等待队友。仅操控 API 中的 local_player，不能操作主人的窗口。LAN 实验模式的开房/加入须用户手动操作游戏菜单，禁止改走 Steam 开局。
+
+        Args:
+            action (string): 动作名。play_card 用 card_index 和可选 target；use_potion 用 slot 和可选 target；discard_potion 用 slot。menu_select 用 option（当前菜单公开值，可选 seed）。choose_map_node、choose_event_option、choose_rest_option、shop_purchase、claim_reward、select_card、select_relic、select_bundle、claim_treasure_relic 用 index；select_card_reward、combat_select_card 用 card_index。crystal_sphere_set_tool 用 tool；crystal_sphere_click_cell 用 x、y。end_turn、undo_end_turn、proceed、advance_dialogue、skip_card_reward、combat_confirm_selection、confirm_selection、cancel_selection、confirm_bundle_selection、cancel_bundle_selection、skip_relic_selection、crystal_sphere_proceed 无参数。
+            parameters (object): 动作参数对象，无参数动作传 {}。不得包含 action 字段。
+        """
+        if not self._is_owner_private(event) or not self.sts2.enabled():
+            return json.dumps({"available": False, "reason": "owner_private_tool_disabled"})
+        try:
+            result = await asyncio.to_thread(
+                self.sts2.game_action, action, parameters
+            )
+            return json.dumps(result, ensure_ascii=False)
+        except STS2Error as exc:
+            logger.warning("STS2 action rejected or failed: %s", str(exc))
+            return json.dumps(
+                {"available": False, "reason": str(exc)}, ensure_ascii=False
+            )
 
     @filter.event_message_type(filter.EventMessageType.ALL, priority=1000)
     async def note_owner_presence(self, event: AstrMessageEvent):
@@ -1400,6 +1446,19 @@ class WhaleDevicePlugin(Star):
 
 # Decorators register handlers; enrich their schemas with actual runtime bounds.
 for _name, _properties, _required in (
+    (
+        "sts2_multiplayer_state",
+        {},
+        [],
+    ),
+    (
+        "sts2_multiplayer_action",
+        {
+            "action": {"type": "string", "enum": sorted(MULTIPLAYER_ACTIONS)},
+            "parameters": {"type": "object", "additionalProperties": True},
+        },
+        ["action", "parameters"],
+    ),
     (
         "whale_phone_instructions",
         {

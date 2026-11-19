@@ -9,6 +9,9 @@
 | NapCat | https://github.com/NapNeko/NapCatQQ | 安装时从原项目取得，遵守下载版本自带许可；不含本机运行副本 |
 | QQ / AVSDK | 腾讯官方发行 | 专有组件，不在源码仓库内，用户从官方渠道取得 |
 | Lucide / 前端依赖 | LivingMemory 内含供应商文件 | 原 LICENSE/NOTICE 随源码保留 |
+| LanSpire（可选） | https://github.com/Madlezz/LanSpire | MIT；LAN 实验模式从上游下载固定 v0.11.0 发布包并核对 SHA-256，安装时附原 MIT 许可与 Madlezz 署名，不将游戏程序集或发布二进制提交到本仓库 |
+| STS2MCP（可选） | https://github.com/Gennadiyev/STS2MCP | 从上游 release 获取游戏内 Mod，保留上游来源，Whale 只提供本机 API 集成 |
+| frp（可选） | https://github.com/fatedier/frp | Apache-2.0；固定 v0.72.0，Windows 客户端安装和 Linux 服务端脚本均核对固定发布包 SHA-256，保留发布包原 LICENSE；不提交二进制或生成的私有部署资料 |
 
 Python、Android 与前端依赖清单保留在 pyproject.toml、requirements.txt、Gradle、package.json，各依赖遵守原许可。没有给上游代码重新授权。新增整合代码使用根目录 AGPL-3.0-or-later；上游有更具体许可的文件以原许可为准。
 

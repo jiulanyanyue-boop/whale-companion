@@ -14,6 +14,34 @@
       "astrbot/dashboard/plugin_page_bridge.js"
     ]
   },
+  "integrations": {
+    "frp": {
+      "url": "https://github.com/fatedier/frp",
+      "release": "v0.72.0",
+      "windows_amd64_sha256": "5197c1b69564089cdc229fc1260a0e25db1e722b1b7db45fe1542c3c43edf9ae",
+      "linux_amd64_sha256": "daf719b32ca2778770bb92955e231a07414d754378b9af328aa2642862479804",
+      "license": "Apache-2.0",
+      "status": "optional STS2 UDP relay; generated deployment only; no remote gameplay verification"
+    },
+    "lanspire": {
+      "url": "https://github.com/Madlezz/LanSpire",
+      "release": "v0.11.0",
+      "asset": "LanSpire_v0.11.0.zip",
+      "sha256": "dd126cd803a738a202132a2deba9fe31ce5e027690ebd1095b2de333574e70c2",
+      "license": "MIT",
+      "status": "experimental; no gameplay verification"
+    },
+    "sts2mcp": {
+      "url": "https://github.com/Gennadiyev/STS2MCP",
+      "version_policy": "latest GitHub release",
+      "last_reviewed_release": "0.4.0",
+      "assets": [
+        "STS2_MCP.dll",
+        "STS2_MCP.json"
+      ],
+      "integrity": "GitHub release API SHA-256 asset digests"
+    }
+  },
   "plugins": [
     "astrbot_plugin_whale_device",
     "astrbot_plugin_whale_memes",

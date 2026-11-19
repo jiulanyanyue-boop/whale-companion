@@ -135,5 +135,52 @@
     "type": "string",
     "description": "手机公网入口：wss://host.example.com:443/whale/device；443端口使用同路径下的配对接口，其他端口使用下一端口",
     "default": ""
+  },
+  "sts2_enabled": {
+    "type": "bool",
+    "description": "启用主人私聊中的 Slay the Spire 2 合作模式 AI 工具；游戏安装、启动由 STS2 联机页操作。",
+    "default": false
+  },
+  "sts2_game_dir": {
+    "type": "string",
+    "description": "Slay the Spire 2 安装目录，应包含 SlayTheSpire2.exe；安装 Mod 时自动创建 mods 文件夹。",
+    "default": ""
+  },
+  "sts2_api_port": {
+    "type": "int",
+    "description": "STS2MCP 本机回环 API 端口，默认 15526。",
+    "default": 15526
+  },
+  "sts2_transport": {
+    "type": "string",
+    "description": "local 为本机 FastMP；lan 为本机双开加远程好友的 LAN 实验模式，需安装 LanSpire。",
+    "options": ["local", "lan"],
+    "default": "local"
+  },
+  "sts2_share_address": {
+    "type": "string",
+    "description": "分享给朋友的 IPv4 或 ASCII 域名，只用于加入说明；公网直连请填写真实公网地址，不改变 MCP 回环监听或系统网络。",
+    "default": ""
+  },
+  "sts2_connection": {
+    "type": "string",
+    "description": "远程好友入口：lan 为局域网，direct 为家宽公网 UDP 直连，relay 为自有服务器 frp UDP 中转；都使用 LanSpire。",
+    "options": ["lan", "direct", "relay"],
+    "default": "lan"
+  },
+  "sts2_public_port": {
+    "type": "int",
+    "description": "朋友连接的外部 UDP 游戏端口。本机仍固定 33771；直连需手动映射，中转需在服务器放行。不要使用 MCP 端口。",
+    "default": 33771
+  },
+  "sts2_relay_host": {
+    "type": "string",
+    "description": "自有 frp 服务器公网 IPv4 或 ASCII 域名；在 STS2 联机页生成配套私有服务端部署包。",
+    "default": ""
+  },
+  "sts2_relay_control_port": {
+    "type": "int",
+    "description": "frp 服务器 TCP/TLS 控制端口，默认 7000，不是朋友填写的 UDP 游戏端口。",
+    "default": 7000
   }
 }
